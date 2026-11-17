@@ -68,6 +68,7 @@ Facing cuts the end face of the part flat down to a Z that you give. The tool ta
 \begin{description}
 \item[\field{Direction}] \emph{outside in}: the tool starts outside the part and moves to the centre. \emph{centre out}: it starts at the centre and moves out.
 \item[\field{Target z}] The Z of the finished face.
+\item[\field{Stock on the face (in front of it)}] Material in front of the face of the part that this block takes off. Use it when the finished face is Z0 and the bar sticks out a few millimetres in front of it: every Z of the program then counts from the finished face, and the raw part does not have to show the extra length. The blocks after it start from the faced part. The presets of a new facing block (the target Z and the stock) are in the Preferences, under New blocks.
 \item[\field{Depth of cut}] How deep each pass is.
 \item[\field{Overtravel past the centre (or bore)}] How far the tool goes past the centre so that no small point of material stays. For a tube, past the bore. The preset follows the tool (two nose radii).
 \item[\field{Finish allowance} and \field{Finishing pass}] The last layer and its own pass (Section~\ref{sec:blocks:common}).

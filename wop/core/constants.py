@@ -56,6 +56,10 @@ POWER_EFFICIENCY = 0.8  # share of the spindle power that reaches the cutting ed
 DXF_MIN_LINE_LENGTH_MM = 0.01  # shorter lines are ignored
 # Facing runs past the centre (or the bore of a tube) by this many nose radii, so no pip is left.
 FACING_OVERTRAVEL_NOSE_FACTOR = 2
+# A new facing block: its target Z (the finished face) and the stock on the face, material in front of the face of the part that it
+# takes off (a finished face at Z0 with a few mm in front of it, without drawing them into the raw part).
+FACING_TARGET_Z_MM = -1
+FACING_FACE_STOCK_MM = 0
 # The finishing allowance of a turning block follows the nose radius of the tool until the user types a value (GUESSED, to review).
 TURNING_FINISH_ALLOWANCE_NOSE_FACTOR = 0.5
 COMPENSATION_LEAD_MARGIN_MM = 1  # lead-in and lead-out of a compensated finishing pass: the nose radius plus this

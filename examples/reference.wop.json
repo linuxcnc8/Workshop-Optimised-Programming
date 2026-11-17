@@ -412,7 +412,8 @@
         "finish_pass": true,
         "finish_feed_mm_per_rev": 0.1,
         "finish_spindle_value": 180,
-        "overtravel_mm": 0
+        "overtravel_mm": 0,
+        "face_stock_mm": 0
       }
     },
     {

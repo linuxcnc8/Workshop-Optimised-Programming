@@ -204,6 +204,7 @@ Rules for this list:
 | X1 | Complex turning with automatic roughing | Roughing leaves the allowance and cuts nothing beyond the contour. | Done |
 | X5 | Facing block | The residual has a flat face at the given Z. | Done |
 | X9 | Facing overtravel past the centre | The preset follows the tool. | Done |
+| X16 | Stock on the face of a facing block | 2 mm of stock and target Z0 on a part whose face is Z0: passes at Z1 and Z0, the part ends at Z0 (`tests/test_facing_stock.py`). | Done, not tried |
 | X6 | Turning block, simple form | The residual equals the expected shape in both directions. | Done |
 | X13 | Taper in the simple turning block | A taper of 10 degrees gives the radius 10 + 30 tan 5 degrees at 30 mm. | Done |
 | X14 | Taper input as angle or rise per 100 mm | Switching shows the same taper the other way. | Done |

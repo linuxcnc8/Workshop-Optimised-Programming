@@ -594,7 +594,8 @@
         "finish_pass": false,
         "finish_feed_mm_per_rev": null,
         "finish_spindle_value": null,
-        "overtravel_mm": 1.5999999999999999
+        "overtravel_mm": 1.5999999999999999,
+        "face_stock_mm": 0
       }
     },
     {

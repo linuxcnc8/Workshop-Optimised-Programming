@@ -134,6 +134,8 @@ CONVENTIONS = (
     Convention("EXAMPLE_FINISH_ALLOWANCE_MM", NEW_BLOCKS, "finishing allowance of a new block (a turning block with a nose radius overrides it, see the factor below)", NON_NEGATIVE),
     Convention("TURNING_FINISH_ALLOWANCE_NOSE_FACTOR", NEW_BLOCKS, "finishing allowance of a turning block = this x the nose radius, until typed", NON_NEGATIVE),
     Convention("FACING_OVERTRAVEL_NOSE_FACTOR", NEW_BLOCKS, "facing runs past the centre (or bore) by this many nose radii", NON_NEGATIVE),
+    Convention("FACING_TARGET_Z_MM", NEW_BLOCKS, "target Z of a new facing block (the finished face)", ANY_NUMBER),
+    Convention("FACING_FACE_STOCK_MM", NEW_BLOCKS, "stock on the face of a new facing block: material in front of the face of the part that it takes off (for a finished face at Z0 with stock in front of it)", NON_NEGATIVE),
     # --- tool paths ---
     Convention("COMPENSATION_LEAD_MARGIN_MM", TOOLPATHS, "lead-in and lead-out of a finishing pass with cutter compensation: the nose radius plus this", NON_NEGATIVE),
     # --- grooving ---

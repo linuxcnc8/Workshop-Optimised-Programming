@@ -144,7 +144,7 @@ class FacingFormTests(unittest.TestCase):
         for spec in specs:
             if spec.path[0] not in order:
                 order.append(spec.path[0])
-        self.assertEqual(order, ["name", "direction", "tool_number", "spindle", "target_z_mm", "feed_mm_per_rev",
+        self.assertEqual(order, ["name", "direction", "tool_number", "spindle", "target_z_mm", "face_stock_mm", "feed_mm_per_rev",
                                  "depth_of_cut_mm", "overtravel_mm", "finish_allowance_mm", "finish_pass",
                                  "finish_feed_mm_per_rev", "finish_spindle_value", "coolant"])
         feed = next(s for s in specs if s.path[0] == "finish_feed_mm_per_rev")

@@ -4,7 +4,9 @@ Outside in, the face is planned as a contour across X by the contour block (`_as
 (or the bore of a tube) by the overtravel out to the stock, the lines across X of the analytic planner on the material that stands, running
 on past the centre by the overtravel. The finishing pass is the block's own (`_finishing`): across X a tool cuts outside in only (its
 side towards larger X may be its holder), and the contour block would finish along the face from the centre out. Its way there and away
-keeps the clearance from the material (X12). Centre out (`_centre_out`) is passes of its own, made the same way as the finishing pass: turned 90 degrees, the planner would see every outside tool cut with its body in front (it has the wrong hand), so the contour block cannot plan it.
+keeps the clearance from the material (X12). The stock on the face (`face_stock_mm`) is material in front of the face that the block
+takes off: it is added in front of the material that stands, for this block only (a finished face at Z0 with a few mm of stock in front of
+it, so every Z of the program counts from the finished face). Centre out (`_centre_out`) is passes of its own, made the same way as the finishing pass: turned 90 degrees, the planner would see every outside tool cut with its body in front (it has the wrong hand), so the contour block cannot plan it.
 """
 
 from __future__ import annotations
@@ -15,7 +17,9 @@ from enum import Enum
 from ..constants import (
     EXAMPLE_DEPTH_OF_CUT_MM,
     EXAMPLE_FEED_MM_PER_REV,
+    FACING_FACE_STOCK_MM,
     FACING_OVERTRAVEL_NOSE_FACTOR,
+    FACING_TARGET_Z_MM,
     GEOMETRY_TOLERANCE_MM,
 )
 from ..geometry import LineSegment, Point, Segment
@@ -44,14 +48,18 @@ class FacingBlock(Block):
     finish_feed_mm_per_rev: float | None = None  # None: the normal feed
     finish_spindle_value: float | None = None  # rpm or m/min as for the spindle; None: as for roughing
     overtravel_mm: float = 0  # how far the tool runs past the centre (or the bore of a tube); preset: twice the nose radius
+    face_stock_mm: float = 0  # material in front of the face that this block takes off (not drawn in the raw part)
     tool_default_fields = ("overtravel_mm",)
 
     def form_fields(self) -> tuple[str, ...]:
         """The order of the form (the fields the user sees; the free comment is not one of them)."""
         return (
-            "name", "direction", "tool_number", "spindle", "target_z_mm", "feed_mm_per_rev", "depth_of_cut_mm",
+            "name", "direction", "tool_number", "spindle", "target_z_mm", "face_stock_mm", "feed_mm_per_rev", "depth_of_cut_mm",
             "overtravel_mm", "finish_allowance_mm", "finish_pass", "finish_feed_mm_per_rev", "finish_spindle_value", "coolant",
         )
+
+    def form_labels(self) -> dict[str, str]:
+        return {"face_stock_mm": "Stock on the face (in front of it)"}
 
     def form_same_line(self) -> frozenset[str]:
         return frozenset({"finish_feed_mm_per_rev", "finish_spindle_value"})  # next to the "Finishing" checkbox
@@ -66,8 +74,8 @@ class FacingBlock(Block):
     def example(cls, block_id: str, tool_number: int, spindle: SpindleSetting) -> "FacingBlock":
         return cls(
             block_id=block_id, name="Facing", tool_number=tool_number, spindle=spindle,
-            target_z_mm=-1, feed_mm_per_rev=EXAMPLE_FEED_MM_PER_REV,
-            depth_of_cut_mm=EXAMPLE_DEPTH_OF_CUT_MM,
+            target_z_mm=FACING_TARGET_Z_MM, feed_mm_per_rev=EXAMPLE_FEED_MM_PER_REV,
+            depth_of_cut_mm=EXAMPLE_DEPTH_OF_CUT_MM, face_stock_mm=FACING_FACE_STOCK_MM,
         )
 
     def __post_init__(self) -> None:
@@ -75,6 +83,8 @@ class FacingBlock(Block):
             raise BlockError("feed and depth of cut must be greater than zero")
         if self.overtravel_mm < 0:
             raise BlockError("the overtravel must not be negative")
+        if self.face_stock_mm < 0:
+            raise BlockError("the stock on the face must not be negative")
         if self.finish_allowance_mm < 0:
             raise BlockError("finishing allowance must not be negative")
         if self.finish_feed_mm_per_rev is not None and self.finish_feed_mm_per_rev <= 0:
@@ -180,10 +190,20 @@ class FacingBlock(Block):
         moves = self._passes(context, residual, here, passes, x_in, bounds.max_x + clearance)
         return BlockResult((header, Rapid(here), *moves, footer), removed)
 
+    def _with_face_stock(self, context: BlockContext) -> BlockContext:
+        """The context with the stock on the face standing in front of the material: a slab across the part (from its bore, if any, out to its
+        largest radius) from the front of the material forward by `face_stock_mm`."""
+        bounds = context.residual.bounds
+        if bounds is None or self.face_stock_mm <= 0:
+            return context
+        slab = Region.rectangle(bounds.min_x, bounds.max_z - GEOMETRY_TOLERANCE_MM, bounds.max_x, bounds.max_z + self.face_stock_mm)
+        return replace(context, residual=context.residual.union(slab))
+
     def generate(self, context: BlockContext) -> BlockResult:
         """The moves of the block: outside in as a contour across X (`_as_contour`), centre out by passes of its own (`_centre_out`)."""
         header = BlockBegin(0, self.block_id, self.type_name, self.name)
         footer = BlockEnd(self.block_id)
+        context = self._with_face_stock(context)
         bounds = context.residual.bounds
         if bounds is None or self.target_z_mm >= bounds.max_z - GEOMETRY_TOLERANCE_MM:
             note = "facing: there is no material above the target, nothing to cut"
