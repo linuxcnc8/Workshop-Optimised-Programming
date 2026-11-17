@@ -139,7 +139,8 @@ The threading block cuts a thread along Z on the outside or inside of the part. 
 
 \begin{description}
 \item[\field{Side}] \emph{outside} or \emph{inside}.
-\item[\field{Thread (M8x1, Tr40x7, 1/4-20 UNC)}] The designation of the thread. When you type it, WOP fills in the pitch and the sizes from it. You can also type the numbers yourself.
+\item[\field{Thread (M8x1, Tr40x7, 1/4-20 UNC)}] The designation of the thread. When you type it, WOP fills in the pitch and the sizes from it. You can also type the numbers yourself. Tapered pipe threads are written R 1/2 (outside) or Rc 1/2 (inside) for BSPT, and 1/2 NPT for NPT; they also fill in the taper and the End Z, the thread length of the standard.
+\item[\field{Thread taper (diameter per 100 mm; 1:16 = 6.25)}] For a tapered thread: how much the diameter grows per 100~mm towards the chuck. A negative value makes it smaller, as for an inside pipe thread. The crest size is the one at Start Z, which for a pipe thread is the pipe end (outside) or the face (inside). Turn or bore the cone first. A tapered thread needs a postprocessor that writes the passes (G33 in LinuxCNC); the G76 cycle cannot cut it.
 \item[\field{Spindle RPM}] The thread is cut at a fixed number of revolutions. A thread needs a constant spindle speed, not a constant surface speed.
 \item[\field{Crest X radius}] The size in X (radius or diameter, as the label says) at the crest of the thread: for an outside thread its outer surface, for an inside thread the bore.
 \item[\field{Pitch}] The distance between two turns of the thread.
@@ -150,7 +151,7 @@ The threading block cuts a thread along Z on the outside or inside of the part. 
 \end{description}
 
 \begin{notebox}
-WOP does not apply tolerance classes (6g, 6H). It cuts the thread to the nominal size. Trapezoid threads with several starts, UNJ threads and pipe threads (G, NPT) are not supported yet. Cut a thread in a test piece first and measure it before you cut a real one. The thread cycle of LinuxCNC was run on the lathe, also in material, and looked right; a finished thread has not been measured.
+WOP does not apply tolerance classes (6g, 6H). It cuts the thread to the nominal size. Trapezoid threads with several starts and UNJ threads are not supported yet. Tapered pipe threads have not been cut on a machine yet. Cut a thread in a test piece first and measure it before you cut a real one. The thread cycle of LinuxCNC was run on the lathe, also in material, and looked right; a finished thread has not been measured.
 \end{notebox}
 
 \section{Grooving}\label{sec:blocks:grooving}

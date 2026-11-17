@@ -359,6 +359,11 @@ class TemplatePost(Postprocessor):
     def thread(self, operation: ThreadOperation) -> list[str]:
         scope = {"op": operation, "start_x": operation.start_x, "start_z": operation.start_z}
         style = self.definition.settings.threading_style
+        if operation.crest_slope and style in ("cycle", "two_block"):
+            raise PostError(
+                f"{self._where('thread_cycle')}: a tapered thread cannot be written as a thread cycle (a cycle such as G76 cuts "
+                "straight threads only); use a post with threading_style = synced_passes"
+            )
         if style == "cycle":
             lines = self.render_concept("thread_cycle", scope)
         elif style == "two_block":

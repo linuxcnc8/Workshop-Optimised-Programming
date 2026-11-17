@@ -227,6 +227,11 @@ class ThreadOperation:
     spring_passes: int
     taper_distance_mm: float = 0  # length of the tapered entry or exit along the thread (G76 E)
     taper: ThreadTaper = ThreadTaper.NONE  # which ends are tapered (G76 L)
+    crest_slope: float = 0.0  # a tapered thread (a cone): the crest radius grows by this per mm towards the chuck (negative: shrinks)
+
+    def crest_at(self, z: float) -> float:
+        """The radius of the crest at z (the crest line extended beyond the thread)."""
+        return self.start_x + self.peak_offset_mm + self.crest_slope * (self.start_z - z)
 
     @property
     def end(self) -> Point:
@@ -261,13 +266,16 @@ class ThreadOperation:
         """The synchronised path of one pass: straight at the depth, or ramping from the crest over the taper length at a
         tapered end (by the depth of this pass, so every pass begins and ends on the crest; LinuxCNC's G76 rises by the
         full depth on every pass, into the air on the shallow ones)."""
-        crest = self.start_x + self.peak_offset_mm
-        cut_x = crest - (1 if self.outside else -1) * depth
+        sign = 1 if self.outside else -1
+
+        def cut(z: float) -> Point:
+            return Point(self.crest_at(z) - sign * depth, z)
+
         tapered = self.taper_distance_mm > 0
         entry = tapered and self.taper in (ThreadTaper.ENTRY, ThreadTaper.BOTH)
         leaving = tapered and self.taper in (ThreadTaper.EXIT, ThreadTaper.BOTH)
-        path = [Point(crest, z_from), Point(cut_x, z_from - self.taper_distance_mm)] if entry else [Point(cut_x, z_from)]
-        path += [Point(cut_x, z_to + self.taper_distance_mm), Point(crest, z_to)] if leaving else [Point(cut_x, z_to)]
+        path = [Point(self.crest_at(z_from), z_from), cut(z_from - self.taper_distance_mm)] if entry else [cut(z_from)]
+        path += [cut(z_to + self.taper_distance_mm), Point(self.crest_at(z_to), z_to)] if leaving else [cut(z_to)]
         return path
 
     def pass_moves(self) -> tuple["Rapid | ThreadFeed", ...]:
@@ -275,22 +283,29 @@ class ThreadOperation:
 
         A pass at depth d is shifted by the compound angle Q: it starts d x tan(Q) towards the chuck and ends (K - d) x tan(Q)
         before the end Z, so the full depth ends on the end Z. It retracts to the start X moved out by K - d (in towards the
-        axis inside), as G76 does. After the last pass the tool goes back along the start X to the start point.
+        axis inside), as G76 does. After the last pass the tool goes back along the start X to the start point. On a tapered
+        thread (a cone, `crest_slope`) the passes follow the crest, and the retract keeps the start clearance from the crest at
+        whichever end of the pass stands out more; the tool goes back to the start Z at that X, then to the start point.
         """
         sign = 1 if self.outside else -1
         tan_q = math.tan(math.radians(self.compound_angle_deg))
+        clearance = sign * (self.start_x - self.crest_at(self.start_z))
         moves: list[Rapid | ThreadFeed] = []
+        retract_x = self.start_x
         for depth in self.pass_depths():
             z_from = self.start_z - depth * tan_q
             z_to = self.end_z + (self.depth_mm - depth) * tan_q
-            retract_x = self.start_x + sign * (self.depth_mm - depth)
+            standing = (max if self.outside else min)(self.crest_at(z_from), self.crest_at(z_to))
+            retract_x = standing + sign * (clearance + self.depth_mm - depth)
             path = self._cut_path(depth, z_from, z_to)
             moves += [Rapid(Point(retract_x, z_from)), Rapid(path[0])]
             for before, after in zip(path, path[1:]):
                 axial = abs(after.z - before.z)
                 moves.append(ThreadFeed(after, self.pitch_mm * math.hypot(axial, after.x - before.x) / axial))
             moves.append(Rapid(Point(retract_x, z_to)))
-        moves.append(Rapid(Point(self.start_x, self.start_z)))  # the last pass is at the full depth: it retracted to the start X
+        moves.append(Rapid(Point(retract_x, self.start_z)))  # a straight thread: the last pass (full depth) retracted to the start X
+        if abs(retract_x - self.start_x) > GEOMETRY_TOLERANCE_MM:
+            moves.append(Rapid(Point(self.start_x, self.start_z)))
         return tuple(moves)
 
     def explicit_moves(self) -> tuple["Rapid | LinearMove", ...]:

@@ -510,4 +510,31 @@ EXAMPLE_PATH_SAFE_Z_MM = 5
 PATH_OUTLINE_MAX_PIECES = 400  # GUESS: a part before a custom path block with more pieces than this is not drawn into the sketch of the path
 SAFE_POINT_KEY = "safe point"  # the locked point of a path sketch: where every block starts and the path begins
 CLAMP_PLANE_POINT = "clamping plane"  # the named point of a drawn raw part: where the jaws begin (only its Z counts)
+# Tapered pipe threads. The rows and formulas are those of the big-blue lathe's Turning panel (thread_data.py, checked there
+# against the standards: the fitting allowance in turns against the gauge length, the gauge diameters of R against the G sizes).
+THREAD_PIPE_TAPER = 1 / 16  # both standards: 1 in 16 on the DIAMETER
+THREAD_WHITWORTH_FLANK_HALF_ANGLE_DEG = 27.5  # BSPT (ISO 7-1): the 55 degree Whitworth form
+THREAD_WHITWORTH_DEPTH_FACTOR = 2 / 3 / (2 * math.tan(math.radians(THREAD_WHITWORTH_FLANK_HALF_ANGLE_DEG)))  # 2H/3 (BS 84): 0.640327 x pitch, both sides
+THREAD_NPT_DEPTH_FACTOR = 0.8  # ASME B1.20.1: h = 0.8 x pitch, flat crest and root, both sides
+THREAD_NPT_E0_FACTOR = 0.05  # E0 = D - (0.05 D + 1.1) P: pitch diameter at the pipe end (inches)
+THREAD_NPT_E0_CONSTANT = 1.1
+THREAD_NPT_L2_FACTOR = 0.80  # L2 = (0.80 D + 6.8) P: length of effective thread (inches)
+THREAD_NPT_L2_CONSTANT = 6.8
+THREAD_BSPT_INTERNAL_GAUGE_OFFSET_PITCHES = 0.5  # ISO 7-1 note 4: inside, the gauge plane is half a pitch behind the face
+NPT_THREADS = (  # ASME B1.20.1: (size, pipe OD in inches, threads per inch, L1 hand-tight engagement in inches)
+    ("1/16", 0.3125, 27, 0.1600), ("1/8", 0.4050, 27, 0.1615), ("1/4", 0.5400, 18, 0.2278), ("3/8", 0.6750, 18, 0.2400),
+    ("1/2", 0.8400, 14, 0.3200), ("3/4", 1.0500, 14, 0.3390), ("1", 1.3150, 11.5, 0.4000), ("1 1/4", 1.6600, 11.5, 0.4200),
+    ("1 1/2", 1.9000, 11.5, 0.4200), ("2", 2.3750, 11.5, 0.4360), ("2 1/2", 2.8750, 8, 0.6820), ("3", 3.5000, 8, 0.7660),
+    ("3 1/2", 4.0000, 8, 0.8210), ("4", 4.5000, 8, 0.8440), ("5", 5.5630, 8, 0.9370), ("6", 6.6250, 8, 0.9580),
+    ("8", 8.6250, 8, 1.0630), ("10", 10.7500, 8, 1.2100), ("12", 12.7500, 8, 1.3600),
+)
+BSPT_THREADS = (  # ISO 7-1 table 1, mm: (size, threads per 25.4, gauge diameter, gauge length, useful thread outside [col 15], inside [col 16])
+    ("1/16", 28, 7.723, 4.0, 6.5, 7.4), ("1/8", 28, 9.728, 4.0, 6.5, 7.4), ("1/4", 19, 13.157, 6.0, 9.7, 11.0),
+    ("3/8", 19, 16.662, 6.4, 10.1, 11.4), ("1/2", 14, 20.955, 8.2, 13.2, 15.0), ("3/4", 14, 26.441, 9.5, 14.5, 16.3),
+    ("1", 11, 33.249, 10.4, 16.8, 19.1), ("1 1/4", 11, 41.910, 12.7, 19.1, 21.4), ("1 1/2", 11, 47.803, 12.7, 19.1, 21.4),
+    ("2", 11, 59.614, 15.9, 23.4, 25.7), ("2 1/2", 11, 75.184, 17.5, 26.7, 30.2), ("3", 11, 87.884, 20.6, 29.8, 33.3),
+    ("4", 11, 113.030, 25.4, 35.8, 39.3), ("5", 11, 138.430, 28.6, 40.1, 43.6), ("6", 11, 163.830, 28.6, 40.1, 43.6),
+)
+TAPER_PER_100_MM = 100  # a taper is shown as the change of the diameter per 100 mm of length
+THREAD_TAPER_LIMIT_PER_100_MM = 50  # a thread taper this steep or steeper is refused (pipe threads are 6.25)
 REPLACED_DEFAULTS = apply_overrides(globals(), "wop.core.constants")

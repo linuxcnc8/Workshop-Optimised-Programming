@@ -427,6 +427,7 @@
         "pitch_mm": 1.5,
         "start_z_mm": 0,
         "end_z_mm": -15,
+        "taper_per_100_mm": 0,
         "thread_depth_mm": null,
         "first_cut_depth_mm": 0.3,
         "degression": 2,

@@ -151,6 +151,8 @@ Rules for this list:
 | N17 | Threading tool (standard shape) | The example thread has no findings. | Done |
 | N9 | Run-out of a threading tool from its flank angle | A drawn V gives its own angle; the standard tool 30 degrees. | Done |
 | N11 | Thread designation fills the thread values | Values match the standard tables; editing a derived number clears the designation. | Done |
+| N54 | Tapered threads (a cone along Z) | The passes follow the crest line; the full depth ends on the end Z; a G76 post refuses it (`tests/test_pipe_threads.py`). | Done, not run on a machine |
+| N55 | Pipe thread designations BSPT (R, Rc) and NPT | R 1/2, Rc 1/2 and 1/2 NPT give the numbers of the big-blue Turning panel's table, with the taper and the end Z (`tests/test_pipe_threads.py`). | Done, not run on a machine |
 | N14 | DXF import of a tool as drawn | `tests/test_sketch_targets.py` | Done |
 | T2 | Presets for insert shapes and drills | A drill of 118 degrees, 8 mm, 40 mm gives the expected contour. | Done |
 | T12 | Tools from ISO holder and insert codes | `PCLNR 2525 M12` with `CNMG 120408` gives a closed shape. | Done: values partly guessed |
