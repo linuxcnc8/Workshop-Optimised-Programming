@@ -185,6 +185,7 @@ class EditorModelTests(unittest.TestCase):
 
     def test_a_concept_from_the_default_post(self):
         model = editor("linuxcnc", shipped=False)
+        model.use_default("thread_passes")  # the LinuxCNC post has a section of its own (for synced_passes): take it away
         self.assertEqual(model.preview("thread_passes").note, "this post has no section of its own: the default post writes it")
         self.assertTrue(model.preview("thread_passes").present)
         self.assertTrue(model.default_section("thread_passes").startswith("(thread as plain passes"))

@@ -40,7 +40,8 @@ _LIST = (
     Concept("tool_change", "change the tool (with the offset)"),
     Concept("thread_cycle", "thread in one block (threading_style = cycle)"),
     Concept("thread_two_block", "thread in two blocks (threading_style = two_block)"),
-    Concept("thread_passes", "lines before a thread written as plain passes (threading_style = passes)", needed=False),
+    Concept("thread_passes", "lines before a thread written as plain passes (threading_style = passes or synced_passes)", needed=False),
+    Concept("thread_move", "one spindle-synchronised move of a thread pass (threading_style = synced_passes; LinuxCNC G33)"),
     Concept("drill_cycle", "canned cycle for a hole with a depth only (drilling_style = cycle; without it the hole is written as plain moves)", needed=False),
     Concept("dwell_drill_cycle", "canned cycle for a hole with a depth and a dwell at the bottom", needed=False),
     Concept("peck_drill_cycle", "canned peck cycle that backs out to the start after every peck", needed=False),
@@ -52,7 +53,7 @@ _LIST = (
 CONCEPTS = {concept.name: concept for concept in _LIST}
 
 DRILL_CYCLES = frozenset({"drill_cycle", "dwell_drill_cycle", "peck_drill_cycle", "chip_break_cycle", "peck_dwell_drill_cycle"})
-MOVES = frozenset({"rapid", "feed", "arc_ccw", "arc_cw", "machine_rapid"})
+MOVES = frozenset({"rapid", "feed", "arc_ccw", "arc_cw", "machine_rapid", "thread_move"})
 ARCS = frozenset({"arc_ccw", "arc_cw"})
 THREADS = frozenset({"thread_cycle", "thread_two_block", "thread_passes"})
 SPINDLE = frozenset({"spindle_css", "spindle_rpm"})

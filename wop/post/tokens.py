@@ -498,7 +498,10 @@ def _define() -> None:
                    kind="lines"))
     register(Token("list notes", "one line per note, from [note_entry]", "", _list_notes, frozenset({"header"}), kind="lines"))
     # thread
-    thread = frozenset({"thread_cycle", "thread_two_block", "thread_passes"})
+    thread = frozenset({"thread_cycle", "thread_two_block", "thread_passes", "thread_move"})
+    register(Token("lead", "pitch measured along a synchronised thread move (LinuxCNC G33 K): the pitch on a straight move, more on a "
+                   "tapered one, so the pitch along Z stays the pitch", "1.5", _plain("lead"), frozenset({"thread_move"}), NUMBER_OPTIONS,
+                   "number", "feed"))
     register(Token("pitch", "thread pitch", "1.5", _op("pitch_mm"), thread, NUMBER_OPTIONS, "number", "feed"))
     register(Token("thread depth", "full depth of the thread (radial)", "0.92", _op("depth_mm", "options"), thread, NUMBER_OPTIONS | {"by_mode", "diameter", "radius"}, "number"))
     register(Token("first cut", "depth of the first pass", "0.2", _op("first_cut_mm", "options"), thread, NUMBER_OPTIONS | {"by_mode", "diameter", "radius"}, "number"))

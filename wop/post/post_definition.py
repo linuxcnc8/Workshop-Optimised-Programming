@@ -39,7 +39,7 @@ SECTION = re.compile(r"^\[([a-z][a-z0-9_]*)\]$")
 NAME = re.compile(r"^[a-z][a-z0-9_]*$")
 YES = ("yes", "true", "on", "1")
 NO = ("no", "false", "off", "0")
-THREADING_STYLES = ("cycle", "two_block", "passes")
+THREADING_STYLES = ("cycle", "two_block", "passes", "synced_passes")
 DRILLING_STYLES = ("expanded", "cycle")
 LINE_ENDINGS = {"lf": "\n", "crlf": "\r\n"}
 POST_SECTIONS = ("post", "settings", "codes", "modal_groups", "functions")
@@ -107,7 +107,7 @@ SETTING_HELP = {
     "comment_upper": "comments in capital letters (yes/no)", "comment_allowed": "the characters a comment may hold",
     "x_diameters": "the controller takes X as a diameter (yes/no)", "arcs_in_diameters": "the controller can write arcs while X is a diameter (yes/no)",
     "cutter_compensation": "write the contour and G41 / G42 / G40 for compensated finishing passes (yes/no); no: the tool path",
-    "threading_style": "cycle, two_block or passes", "drilling_style": "expanded or cycle",
+    "threading_style": "cycle, two_block, passes or synced_passes", "drilling_style": "expanded or cycle",
     "program_number": "text for <program number>", "date_format": "format of <date> (strftime)", "time_format": "format of <time>",
 }
 

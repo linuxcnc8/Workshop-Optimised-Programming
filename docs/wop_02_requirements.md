@@ -255,6 +255,8 @@ Rules for this list:
 | O33 | Only the LinuxCNC post is shipped | The list holds only LinuxCNC (`tests/test_shipped_posts.py`). | Done |
 | O34 | Line numbers in a post | `tests/test_app_model.py` | Done, not tried |
 | O32 | Drilling cycles in a post | `tests/test_drill_cycles.py` | Partly: air cut fine; not tried in material |
+| O35 | Threads as synchronised passes (`threading_style = synced_passes`, LinuxCNC G33) | The passes of a straight thread make the moves of LinuxCNC's G76 (`tests/test_thread_passes.py`, against rs274 where it is installed). | Done, not run on a machine |
+| O36 | LinuxCNC G76 ends at the end Z: the post goes back to the start Z | The line after G76 is a rapid to the thread start Z (`tests/test_thread_passes.py`). | Done, not run on a machine |
 | O3 | The first post is for LinuxCNC, tested on a real machine | The G-code of a reference program runs on a LinuxCNC lathe. | Done: one lathe (Schaublin 125 CNC), see the README |
 | O8 | Verification recorded per feature of a post | - | Dropped (the user checks what a post writes) |
 | O9 | Header comment for an unverified feature | - | Dropped |

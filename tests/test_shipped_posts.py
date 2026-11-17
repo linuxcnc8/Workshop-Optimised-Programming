@@ -41,7 +41,7 @@ class LibraryTests(unittest.TestCase):
     def test_the_default_post_has_every_section_the_others_may_leave_out(self):
         generic = load_post_library().posts[FALLBACK_POST_ID]
         for name, concept in CONCEPTS.items():
-            if concept.needed and name not in ("arc_cw", "arc_ccw", "spindle_css", "thread_cycle", "thread_two_block", "drill_cycle"):
+            if concept.needed and name not in ("arc_cw", "arc_ccw", "spindle_css", "thread_cycle", "thread_two_block", "thread_move", "drill_cycle"):
                 self.assertIn(name, generic.templates, name)
 
     def test_capabilities_are_as_before(self):

@@ -135,7 +135,7 @@ The postprocessor can write a hole as a canned cycle of the controller (\file{G8
 
 \shot[0.45]{block_threading}{The form of a threading block.}
 
-The threading block cuts a thread along Z on the outside or inside of the part. The postprocessor writes the thread as one cycle of the controller (\file{G76} in LinuxCNC) if it has one. The fields are named like the words of that cycle.
+The threading block cuts a thread along Z on the outside or inside of the part. The postprocessor writes the thread as one cycle of the controller (\file{G76} in LinuxCNC) if it has one, or pass by pass with moves that follow the spindle (\file{G33} in LinuxCNC; a setting of the post). Both make the same passes. The fields are named like the words of the cycle.
 
 \begin{description}
 \item[\field{Side}] \emph{outside} or \emph{inside}.

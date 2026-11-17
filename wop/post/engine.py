@@ -29,6 +29,7 @@ from ..core.program_model.operations import (
     RapidAxes,
     SpindleMode,
     SpindleSetting,
+    ThreadFeed,
     ThreadOperation,
 )
 from ..core.program_model.units import XInputMode
@@ -362,11 +363,20 @@ class TemplatePost(Postprocessor):
             lines = self.render_concept("thread_cycle", scope)
         elif style == "two_block":
             lines = self.render_concept("thread_two_block", scope)
+        elif style == "synced_passes":  # the passes move by move, the cuts as synchronised moves (LinuxCNC G33)
+            lines = self.render_concept("thread_passes", scope)
+            for move in operation.pass_moves():
+                lines += self.rapid(move) if isinstance(move, Rapid) else self._thread_move(move, operation)
         else:  # plain passes: the moves of the passes are written as ordinary moves
             lines = self.render_concept("thread_passes", scope)
             for move in operation.explicit_moves():
                 lines += self.rapid(move) if isinstance(move, Rapid) else self.linear(move)
         self._moved(operation.start_x, operation.start_z)
+        return lines
+
+    def _thread_move(self, move: ThreadFeed, operation: ThreadOperation) -> list[str]:
+        lines = self.render_concept("thread_move", {"x": move.end.x, "z": move.end.z, "lead": move.lead_mm, "op": operation})
+        self._moved(move.end.x, move.end.z)
         return lines
 
     def drill(self, operation: DrillOperation, settings: PostSettings) -> list[str]:

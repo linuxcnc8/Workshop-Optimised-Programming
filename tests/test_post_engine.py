@@ -364,9 +364,9 @@ class MachineTests(unittest.TestCase):
         passes.set_spindle(SpindleSetting(SpindleMode.CONSTANT_RPM, 100))
         lines = passes.thread(self.thread())
         self.assertEqual(lines[0], "PASSES")
-        self.assertTrue(lines[1].startswith("G0 X"))
-        self.assertIn("G1 X", lines[2])
-        self.assertTrue(lines[2].endswith("F150"))
+        self.assertTrue(lines[1].startswith("G0 X"))  # to the retract point of the first pass, then in to its depth (as G76)
+        self.assertIn("G1 X", lines[3])
+        self.assertTrue(lines[3].endswith("F150"))
 
     def test_a_drill_cycle_and_its_optional_words(self):
         instance = post("fake_machine")

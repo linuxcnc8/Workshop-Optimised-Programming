@@ -7,6 +7,7 @@ are millimetres per revolution. Nothing in this module knows about G-code.
 
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass, field, replace
 from enum import Enum
 
@@ -209,8 +210,9 @@ class ThreadOperation:
     `start_x` is where the cycle starts, `peak_offset_mm` the signed distance from there to
     the thread crest (negative: crest is nearer the axis, an outside thread), `first_cut_mm`
     the depth of the first pass below the crest and `depth_mm` the full thread depth.
-    The tool returns to the start point. `explicit_moves` is an approximation of the passes
-    (straight in-feed) for the collision check and the picture only.
+    The tool returns to the start point (a post whose cycle ends elsewhere, as LinuxCNC's G76 at the end Z,
+    writes the way back). `pass_moves` are the passes move by move (the moves of LinuxCNC's G76 for a straight
+    thread); `explicit_moves` are the same with the synchronised moves as feed moves, for the picture and the checks.
     """
 
     start_x: float
@@ -255,19 +257,54 @@ class ThreadOperation:
         depths += [self.depth_mm] * self.spring_passes
         return depths
 
-    def explicit_moves(self) -> tuple["Rapid | LinearMove", ...]:
+    def _cut_path(self, depth: float, z_from: float, z_to: float) -> list[Point]:
+        """The synchronised path of one pass: straight at the depth, or ramping from the crest over the taper length at a
+        tapered end (by the depth of this pass, so every pass begins and ends on the crest; LinuxCNC's G76 rises by the
+        full depth on every pass, into the air on the shallow ones)."""
         crest = self.start_x + self.peak_offset_mm
+        cut_x = crest - (1 if self.outside else -1) * depth
+        tapered = self.taper_distance_mm > 0
+        entry = tapered and self.taper in (ThreadTaper.ENTRY, ThreadTaper.BOTH)
+        leaving = tapered and self.taper in (ThreadTaper.EXIT, ThreadTaper.BOTH)
+        path = [Point(crest, z_from), Point(cut_x, z_from - self.taper_distance_mm)] if entry else [Point(cut_x, z_from)]
+        path += [Point(cut_x, z_to + self.taper_distance_mm), Point(crest, z_to)] if leaving else [Point(cut_x, z_to)]
+        return path
+
+    def pass_moves(self) -> tuple["Rapid | ThreadFeed", ...]:
+        """Every pass move by move, as LinuxCNC's G76 makes them (checked against rs274 in `tests/test_thread_passes.py`).
+
+        A pass at depth d is shifted by the compound angle Q: it starts d x tan(Q) towards the chuck and ends (K - d) x tan(Q)
+        before the end Z, so the full depth ends on the end Z. It retracts to the start X moved out by K - d (in towards the
+        axis inside), as G76 does. After the last pass the tool goes back along the start X to the start point.
+        """
         sign = 1 if self.outside else -1
-        moves: list[Rapid | LinearMove] = []
+        tan_q = math.tan(math.radians(self.compound_angle_deg))
+        moves: list[Rapid | ThreadFeed] = []
         for depth in self.pass_depths():
-            x = crest - sign * depth
-            moves += [
-                Rapid(Point(x, self.start_z)),
-                LinearMove(Point(x, self.end_z), self.pitch_mm),
-                Rapid(Point(self.start_x, self.end_z)),
-                Rapid(Point(self.start_x, self.start_z)),
-            ]
+            z_from = self.start_z - depth * tan_q
+            z_to = self.end_z + (self.depth_mm - depth) * tan_q
+            retract_x = self.start_x + sign * (self.depth_mm - depth)
+            path = self._cut_path(depth, z_from, z_to)
+            moves += [Rapid(Point(retract_x, z_from)), Rapid(path[0])]
+            for before, after in zip(path, path[1:]):
+                axial = abs(after.z - before.z)
+                moves.append(ThreadFeed(after, self.pitch_mm * math.hypot(axial, after.x - before.x) / axial))
+            moves.append(Rapid(Point(retract_x, z_to)))
+        moves.append(Rapid(Point(self.start_x, self.start_z)))  # the last pass is at the full depth: it retracted to the start X
         return tuple(moves)
+
+    def explicit_moves(self) -> tuple["Rapid | LinearMove", ...]:
+        """The passes for the picture and the checks: `pass_moves` with the synchronised moves as feed moves (axial pitch)."""
+        return tuple(LinearMove(move.end, self.pitch_mm) if isinstance(move, ThreadFeed) else move for move in self.pass_moves())
+
+
+@dataclass(frozen=True)
+class ThreadFeed:
+    """One spindle-synchronised move of a thread pass (LinuxCNC G33). `lead_mm` is the pitch measured along the move, so a
+    tapered move keeps the axial pitch of the thread (LinuxCNC's G33 K is measured along the move)."""
+
+    end: Point
+    lead_mm: float
 
 
 def plain_moves(operation: "Operation") -> tuple["Operation", ...]:
