@@ -350,6 +350,7 @@ class DialogsAndViewsTests(unittest.TestCase):
         from wop.ui.qt.materials_dialog import MaterialsDialog
         from wop.ui.qt.post_editor_dialog import PostEditorDialog
         from wop.ui.qt.preferences_dialog import FixedValuesDialog, PreferencesDialog
+        from wop.ui.qt.points_dialog import PointsDialog
         from wop.ui.qt.sketch_dialog import SketchDialog
         from wop.ui.qt.tools_view import ToolsView
         from wop.ui.qt.view3d_dialog import View3DDialog
@@ -372,6 +373,7 @@ class DialogsAndViewsTests(unittest.TestCase):
             lambda: View3DDialog(window, model),
             lambda: PostEditorDialog(window, model, "linuxcnc"),
             lambda: PreferencesDialog(window, model),
+            lambda: PointsDialog(window, "Points", [], True),
             lambda: FixedValuesDialog(window, "text"),
             lambda: ExportCheckDialog(window, ExportReport(False, ("block 2 is left out",)), lambda: ExportReport(True)),
             lambda: ExportSelectedDialog(window, "title", lambda done: (picture, "notes", "code"), lambda done: None),

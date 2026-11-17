@@ -42,6 +42,7 @@ How the program is built and why: the current state only, in short bullets. Hist
 - Drag: every other point is held softly (`DRAG_STAY_WEIGHT`) and a drag the relations cannot follow is tried with a smaller pull (`DRAG_BACKOFF`), so the free part of a loosely defined shape follows the mouse.
 - Limits the user accepts: no offset or rotate of a whole outline, mirror or move of a whole shape only by hand, no step list, a part from DXF in three steps.
 - Add > Contour makes an empty contour and opens the editor; the centre draws the stored `Contour`.
+- Points table (`core/sketch/points_profile.py`, `ui/qt/points_dialog.py`): rows X, Z with R or C at a corner, as the big-blue Turning panel; the rows become a sketch of lines with the sketch's own fillets and chamfers, so the sketch editor can change it; Edit as points reads a sketch back (a fillet or chamfer keeps its sharp corner, `CornerLink`); an arc that is not a corner cannot be rows. Paste text: the Turning panel's lines `X Z [R.. | C..]`, X a diameter.
 - No or invalid contour: the block is left out, the G-code says "INCOMPLETE - DO NOT RUN".
 - DXF (`dxf_files.read_dxf`, ezdxf): LINE, ARC, polylines, points and text as named points; everything else counted in the notes.
 - Part contour from DXF: axis horizontal or vertical, mirrored from below the axis, lines on the axis dropped, longest chain, turned to start at the highest Z.

@@ -11,6 +11,13 @@ A contour lives under the heading \menu{Contours} in the flow list. It is not a 
 \subsection{Making a contour}
 Choose \button{Add block}, then \menu{Contour}. A new contour is made, and the sketch editor opens for it at once. Draw the outline and press \button{OK}. The contour is now in the list.
 
+\subsection{A contour from points}
+Most turned parts are straight lines with a radius or a chamfer at some corners. For these you do not need to draw: choose \button{Add block}, then \menu{Contour from points...}. A table opens. Type one row per corner, from the front of the part towards the chuck: X (a diameter or a radius, as the heading says), Z, and in \field{Corner} a radius (R) or a chamfer (C) with its \field{Size}. The first and the last point have no corner. For a solid part, start on the axis at the face (X 0, Z 0). The picture under the table shows the contour while you type, and the line under it says what is still wrong; \button{OK} works when the contour is fine.
+
+\button{Paste text...} shows the points as text, one point per line (\file{36 -20 R2}), with X as a diameter. Copy it, or paste a profile in the same form, for example one from the Turning panel of the lathe.
+
+To change a contour as points later, choose it in the flow list and click \button{Edit as points...}. A radius or chamfer that was made in the sketch editor comes back as R or C on its corner. A contour with other arcs cannot be shown as points; change it in the sketch editor. A contour from points is a normal contour: the sketch editor can change it too.
+
 \subsection{The form of a contour}
 Click a contour in the flow list. Its form has the name of the contour and the button \button{Sketch editor...}. The text under the name says \emph{The contour is fine}, or what is wrong with it. Give the contour a name that says what it is, for example \emph{stepped shaft}. A block chooses its contour by this name.
 

@@ -10,7 +10,7 @@ from pathlib import Path
 from ....core.constants import LIBRARY_KIND_MATERIALS, LIBRARY_KIND_TOOLS, LIBRARY_KIND_WORKHOLDING
 from ...app_model import ModelError
 from ..qt_constants import APP_NAME, NEUTRAL_CODE_HEIGHT_PX, NEUTRAL_CODE_MENU_TEXT, NEUTRAL_CODE_SINGLE_MOVES_MENU_TEXT, NEUTRAL_CODE_WIDTH_PX
-from .helpers import CONTOUR_MENU_TEXT, COPY_MENU_TEXT, LIBRARY_FILTER
+from .helpers import CONTOUR_MENU_TEXT, COPY_MENU_TEXT, LIBRARY_FILTER, POINTS_MENU_TEXT
 
 
 class MenusMixin:
@@ -157,6 +157,7 @@ class MenusMixin:
             action.triggered.connect(lambda _checked=False, t=type_name: self._add_block(t))
         self._block_menu.addSeparator()
         self._block_menu.addAction(CONTOUR_MENU_TEXT).triggered.connect(lambda _checked=False: self._contour_action(self._new_contour))
+        self._block_menu.addAction(POINTS_MENU_TEXT).triggered.connect(lambda _checked=False: self._contour_action(self._new_contour_from_points))
 
     def _flow_menu(self, point) -> None:
         """Right click on a block or contour of the flow list: Copy, and for a block its neutral operations as text."""

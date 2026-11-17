@@ -5,6 +5,9 @@ from __future__ import annotations
 from dataclasses import replace
 from ...core.blocks.base import BlockError, NO_CONTOUR
 from ...core.contour import Contour
+from ...core.sketch.model import SketchError
+from ...core.sketch.modes import TURNING, contour_from_sketch, sketch_from_contour
+from ...core.sketch.points_profile import ProfileError, ProfileRow, rows_from_sketch, sketch_from_rows
 from .helpers import ModelError
 
 NEW_CONTOUR_NOTE = "the contour is not drawn yet: use Sketch editor..."
@@ -84,6 +87,35 @@ class ContoursMixin:
         self._changed()
         self.select_contour(copy.contour_id)
         return copy.contour_id
+
+    def contour_from_rows(self, rows: list[ProfileRow], contour_id: str | None = None) -> str:
+        """A contour typed as points (C12): a new one (None) or the contour `contour_id` drawn again from the rows; it is chosen.
+        Raises ModelError with the reason when the rows make no contour."""
+        stored = next((c for c in self.program.contours if c.contour_id == contour_id), None)
+        if contour_id is not None and stored is None:
+            raise ModelError(f"there is no contour {contour_id!r}")
+        try:
+            sketch = sketch_from_rows(rows)
+            new_id = contour_id or self.next_contour_id()
+            name = stored.name if stored is not None else f"Contour {len(self.program.contours) + 1}"
+            contour = contour_from_sketch(sketch, TURNING, new_id, name)
+        except (ProfileError, SketchError) as error:
+            raise ModelError(str(error)) from None
+        self.set_contour(contour)
+        self.select_contour(new_id)
+        return new_id
+
+    def contour_rows(self, contour_id: str) -> list[ProfileRow]:
+        """The contour as points (C12), front first. Raises ModelError when it cannot be written as points (an arc that is not a corner)."""
+        stored = next((c for c in self.program.contours if c.contour_id == contour_id), None)
+        if stored is None:
+            raise ModelError(f"there is no contour {contour_id!r}")
+        if not stored.segments:
+            return []
+        try:
+            return rows_from_sketch(sketch_from_contour(stored))
+        except (ProfileError, SketchError) as error:
+            raise ModelError(str(error)) from None
 
     def block_note(self, index: int) -> str:
         """A short note for the flow list, for example "no contour set" (C10); empty if all is well."""

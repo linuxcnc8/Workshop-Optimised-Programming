@@ -1,6 +1,6 @@
 """The right panel while a contour is chosen (requirement C9): its name, the Sketch editor button and what is wrong with it.
 
-The outline is drawn in the sketch editor (`SketchDialog`); the centre view shows the contour. Only the name is edited here.
+The outline is drawn in the sketch editor (`SketchDialog`) or typed as points (`PointsDialog`); the centre view shows the contour. Only the name is edited here.
 """
 
 from __future__ import annotations
@@ -13,6 +13,7 @@ class ContourPanel(QWidget):
     """`model` is the program (`AppModel`)."""
 
     sketch_requested = Signal()  # the "Sketch editor..." button
+    points_requested = Signal()  # the "Edit as points..." button
 
     def __init__(self, model) -> None:
         super().__init__()
@@ -24,10 +25,14 @@ class ContourPanel(QWidget):
         sketch_button = QPushButton("Sketch editor...")
         sketch_button.setToolTip("Draw this contour in the sketch editor (relations, dimensions, import of a DXF drawing)")
         sketch_button.clicked.connect(lambda _checked=False: self.sketch_requested.emit())
+        points_button = QPushButton("Edit as points...")
+        points_button.setToolTip("Change this contour as a table of points with a radius or chamfer at the corners (as the Turning panel)")
+        points_button.clicked.connect(lambda _checked=False: self.points_requested.emit())
         layout = QVBoxLayout(self)
         layout.addWidget(QLabel("Name"))
         layout.addWidget(self._name)
         layout.addWidget(sketch_button)
+        layout.addWidget(points_button)
         layout.addWidget(self._status)
         layout.addStretch(1)
 

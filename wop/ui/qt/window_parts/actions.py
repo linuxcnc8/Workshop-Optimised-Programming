@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from PySide6.QtWidgets import QMessageBox
 
+from ....core.program_model.units import XInputMode
 from ....core.sketch.model import SketchError
 from ...app_model import ModelError
 from ..machines_dialog import MachinesDialog
@@ -11,6 +12,7 @@ from ..materials_dialog import MaterialsDialog
 from ..post_editor_dialog import PostEditorDialog
 from ..toolboxes_dialog import ToolboxesDialog
 from ..preferences_dialog import PreferencesDialog
+from ..points_dialog import PointsDialog
 from ..sketch_dialog import SketchDialog
 from ..qt_constants import APP_NAME, RIGHT_PANEL
 from .helpers import MODE_TOOLS, MODE_WORKHOLDING
@@ -75,6 +77,33 @@ class ActionsMixin:
         """A new contour is chosen and the sketch editor opens for it; when the editor is closed the contour stays chosen."""
         self.model.new_contour()
         self._sketch_for_contour()
+
+    def _new_contour_from_points(self) -> None:
+        """The points table for a new contour; OK adds the contour and chooses it, Cancel adds nothing."""
+        dialog = PointsDialog(self, "Contour from points", [], self.model.x_mode() is XInputMode.DIAMETER)
+        if dialog.exec():
+            try:
+                self.model.contour_from_rows(dialog.rows())
+            except ModelError as error:
+                self._say(str(error))
+
+    def _points_for_contour(self) -> None:
+        """The chosen contour as a table of points; OK draws it again from the points (the sketch it had is replaced)."""
+        contour = self.model.chosen_contour()
+        if contour is None:
+            self._say("Choose or add a contour first.")
+            return
+        try:
+            rows = self.model.contour_rows(contour.contour_id)
+        except ModelError as error:
+            self._say(str(error))
+            return
+        dialog = PointsDialog(self, f"Points of {contour.name}", rows, self.model.x_mode() is XInputMode.DIAMETER)
+        if dialog.exec():
+            try:
+                self.model.contour_from_rows(dialog.rows(), contour.contour_id)
+            except ModelError as error:
+                self._say(str(error))
 
     def _delete_contour(self) -> None:
         found = [c for c in self.model.program.contours if c.contour_id == self.model.selected_contour]

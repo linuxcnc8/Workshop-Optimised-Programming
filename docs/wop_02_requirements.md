@@ -95,6 +95,7 @@ Rules for this list:
 | C5 | One contour shared by several blocks | Editing it changes both blocks; deleting a used one is refused. | Done |
 | C9 | Contours are entries in the flow list | `tests/test_contour_selection.py`, `tests/test_qt_real.py` | Done |
 | C14 | Deleting a used contour offers three choices | Abort, delete with the blocks, or keep the blocks without a contour. | Done |
+| C16 | A contour typed as points (X, Z, R or C per corner) | Add block > Contour from points and Edit as points...; the rows round-trip through the sketch; the Turning panel's text is read (`tests/test_points_profile.py`). | Done, not tried |
 | C10 | A block without a valid contour is left out | The export marks the program incomplete (DO NOT RUN). | Done |
 | C8 | Crossings are checked | A crossing is reported with element numbers and cannot be used (`tests/test_sketch_modes.py`). | Done |
 | C2 | Corner with a tangent radius by coordinates or intersection | Both inputs give the same contour. | Done |

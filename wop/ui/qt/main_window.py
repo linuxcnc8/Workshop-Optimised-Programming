@@ -165,6 +165,7 @@ class MainWindow(
         right_layout = QVBoxLayout(right)
         self.contour_panel = ContourPanel(self.model)
         self.contour_panel.sketch_requested.connect(self._sketch_for_contour)
+        self.contour_panel.points_requested.connect(self._points_for_contour)
         self.right_stack = QStackedWidget()
         block_page = QWidget()  # the block form
         block_layout = QVBoxLayout(block_page)

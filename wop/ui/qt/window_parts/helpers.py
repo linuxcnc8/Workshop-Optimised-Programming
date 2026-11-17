@@ -26,7 +26,8 @@ CONTOURS_HEADER = "Contours"
 
 
 COPY_MENU_TEXT = "Copy"  # right click on a block or contour of the flow list
-CONTOUR_MENU_TEXT = "Contour"  # the last entry of the Add block menu
+CONTOUR_MENU_TEXT = "Contour"  # the last entries of the Add block menu
+POINTS_MENU_TEXT = "Contour from points..."
 
 
 PROJECT_FILTER = f"WOP project (*{PROJECT_FILE_SUFFIX} *.json)"
