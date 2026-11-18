@@ -244,5 +244,35 @@ class ToolListTests(unittest.TestCase):
         self.assertEqual(self.model.next_contour_id(), "contour2")
 
 
+
+class ChosenToolGoneTests(unittest.TestCase):
+    """The chosen tool of the Tools view is dropped when the project no longer has it (File > New crashed: "tool T1 is not defined")."""
+
+    def setUp(self):
+        self.model = AppModel()
+        self.number = self.model.add_tool_of_type("thread")  # the Tools view shows it
+
+    def test_a_new_project_drops_the_chosen_tool(self):
+        self.assertEqual(self.model.selected_tool, self.number)
+        self.model.new()
+        self.assertIsNone(self.model.selected_tool)
+
+    def test_opening_a_project_without_that_tool_drops_it(self):
+        with tempfile.TemporaryDirectory() as folder:
+            path = Path(folder) / "empty.wop.json"
+            other = AppModel()
+            other.save(path)
+            self.model.open(path)
+        self.assertIsNone(self.model.selected_tool)
+
+    def test_undo_of_adding_the_tool_drops_it(self):
+        self.model.undo()
+        self.assertIsNone(self.model.selected_tool)
+
+    def test_a_tool_that_is_still_there_stays_chosen(self):
+        self.model.add_block("facing")
+        self.assertEqual(self.model.selected_tool, self.number)
+
+
 if __name__ == "__main__":
     unittest.main()

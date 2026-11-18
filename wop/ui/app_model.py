@@ -124,6 +124,7 @@ class AppModel(
         self.dirty = self.dirty or dirty
         self._record()
         self._drop_missing_contour()
+        self._drop_missing_tool()
         self.refresh()
         for listener in list(self._listeners):
             listener()
@@ -165,6 +166,7 @@ class AppModel(
         if self._sync_project_machine():  # an old state holds an old copy of the machine
             self._history[target] = self.project
         self._drop_missing_contour()
+        self._drop_missing_tool()
         if self.selected is not None and self.selected >= len(self.blocks):
             self.selected = len(self.blocks) - 1 if self.blocks else None
         self.dirty = True

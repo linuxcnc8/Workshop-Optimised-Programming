@@ -198,6 +198,11 @@ class ToolsMixin:
             self.selected_tool = tools[0].number if tools else None
         self._changed()
 
+    def _drop_missing_tool(self) -> None:
+        """After any change (File > New, Open, Undo ...): no tool is chosen in the Tools view when the chosen one is gone."""
+        if self.selected_tool is not None and not any(t.number == self.selected_tool for t in self.program.tools):
+            self.selected_tool = None
+
     def select_tool(self, number: int | None) -> None:
         self.selected_tool = number
         self._notify()
