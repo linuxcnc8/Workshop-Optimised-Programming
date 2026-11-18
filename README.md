@@ -1,5 +1,7 @@
 # WOP - Workshop Optimised Programming (LinuxCNC lathe)
 
+> **Branch `bigblue-changes`:** changes made on top of v0.1.0 for one user's lathe are listed, with the reasons and merge notes, in [BIGBLUE_CHANGES.md](BIGBLUE_CHANGES.md).
+
 Workshop-style programming for LinuxCNC lathes (XZ): you describe the raw part, then add blocks (facing, turning, turning along a contour, grooving, drilling, threading, a path you draw, machine functions), and WOP plans the tool paths, checks them for collisions, estimates the power, shows the result in 2D and 3D and writes the G-code through a postprocessor. A partly tested LinuxCNC post comes with it; other controllers are supported through post description files, which you can write and edit yourself with the post editor. It is a quick workshop tool, not a CAM package: it plans what you draw, and tells you where the tool cannot reach or collides.
 
 Version 0.1.0, the first release. WOP is a standalone app (Windows and Linux); it has no connection to LinuxCNC yet, you copy the G-code file to the machine. A small bridge to LinuxCNC is planned for after the first release.

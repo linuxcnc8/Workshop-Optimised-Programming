@@ -1,0 +1,203 @@
+# Changes on branch `bigblue-changes`
+
+Changes made on top of WOP v0.1.0 (GitHub `LooksAboutRight/Workshop-Optimised-Programming`, base commit `82a637d`)
+for one user's LinuxCNC lathe ("Big Blue", Mesa hardware, LinuxCNC on Debian 13). They were written with Claude Code
+following this repository's own rules (`CLAUDE.md`, `docs/wop_03_conventions.md`): each commit keeps the docs, the
+manual, the requirements and the tests in step, and the full suite was green before each commit.
+
+This file is for the author, to see what changed and why, and to merge what he wants. Each feature is in its own
+commit (or two), so commits can be picked one by one. `git log 82a637d..bigblue-changes` lists them;
+`git diff 82a637d bigblue-changes` shows everything.
+
+## At a glance
+
+| Commit | What | Requirement IDs |
+|---|---|---|
+| `6b403c0` | Threads as longhand G33 passes (`threading_style = synced_passes`); fix: LinuxCNC G76 ends at the end Z | O35, O36 |
+| `d411501` | Tapered threads; pipe thread designations BSPT (R / Rc) and NPT | N54, N55 |
+| `c632103` | Facing: stock on the face (`face_stock_mm`) and two new Preferences | X16 |
+| `ec6b614` | Contour from points: a points table with R / C corners, paste from text | C16 |
+| `5a61b19` | Threading: "material beyond the crest" is a warning, not a refusal; a menu of standard threads | N56, N57 |
+| `8a7e92e` | Threading: X2, the crest diameter at the end Z (typing it sets the taper) | N58 |
+| `f42f799` | Thread depth for partial-profile inserts (from the tool data); metric table from the Turning panel | N59, N60 |
+| `ab3e6a3` | Thread depth: empty = auto, shown in the field with the tool's tip correction; typed = cut as typed | N60 |
+| `76e1fc4` | Fix: File > New / Open / Undo crashed with "tool T1 is not defined" when the Tools view had a tool chosen | — |
+| `3f7e0d9`, `57b6522`, `ef01747` | Requirement status only ("tried by the user") | — |
+
+About 52 files, +2100 / -130 lines, of which more than half are tests, docs and the manual. No new library. None of the
+mypyc-compiled modules (`wop/core/compiled.py`) were touched. Only run on Linux (Python 3.13, PySide6, offscreen Qt
+tests); the Windows build was not tried.
+
+## Behaviour that changes for existing users
+
+Read these first: they are the changes that make an existing project or post behave differently.
+
+1. **Threading: material beyond the crest no longer refuses the block** (`5a61b19`). Before, a thread over stock that
+   was not yet turned or bored to the crest gave no thread at all. Now the thread is written and the block gets a note
+   that starts with "WARNING:"; the collision check still reports the tool hitting the stock, and Export still asks.
+   The user's reason: "I don't want so many checks to tick before I can use the software"; sometimes the stock is
+   already turned on the machine and WOP's raw part does not show it. This is in the spirit of the "written as drawn"
+   rule in `CLAUDE.md`.
+2. **Metric and Unified thread depths use exact fractions** (`f42f799`): 17H/24 = 0.6134347 P outside and
+   5H/8 = 0.5412659 P inside instead of the rounded 0.6134 / 0.5413. The depth changes by about 0.00003 x pitch.
+3. **A designation leaves Thread depth empty (auto)** (`ab3e6a3`). Before, picking M24x3 wrote 1.8403 into the depth
+   field as a fixed number. Now the field stays empty and shows the depth it will cut as grey text ("auto 1.8403"), so
+   the depth follows the tool (see partial-profile inserts below). A designation still writes a number when a fit
+   allowance (`THREAD_EXTERNAL_CREST_ALLOWANCE_MM`, `THREAD_INTERNAL_BORE_ALLOWANCE_MM`) makes the depth differ from the
+   form's. A typed depth is cut exactly as typed. Projects saved before keep their stored number.
+4. **The shipped LinuxCNC post rapids back to the thread start Z after G76** (`6b403c0`). LinuxCNC's G76 ends at the
+   end Z of its drive line; WOP planned the next move from the start Z, so an inside thread could rapid through the
+   bore wall. This is a fix, but it adds a line to every G76 the post writes.
+5. **New fields in saved files** (all have defaults, so older files load unchanged; an older WOP would refuse the new
+   files because the codec rejects unknown fields):
+   - `FacingBlock.face_stock_mm` (0)
+   - `ThreadingBlock.thread_form` (`ISO`), `ThreadingBlock.tip_correction` (true)
+   - threading tool `ThreadDefinition.profile` (`FULL`): a tool saved before is a full-profile one, so its depths do not change
+6. **New Preferences (New blocks)**: `FACING_TARGET_Z_MM` (-1) and `FACING_FACE_STOCK_MM` (0). The built-in values keep
+   the old behaviour.
+7. **Labels in the threading form**: "Thread (type, or pick from the list)", new "Thread form", "X2 crest diameter at
+   End Z", "Correct the auto depth for a partial-profile tool".
+
+## The features
+
+### 1. Threads as synchronised passes, LinuxCNC G33 (`6b403c0`)
+
+Why: the user wanted to see and control every threading pass in the G-code rather than one G76 line, and G76 cannot cut
+a tapered thread along a cone.
+
+- `ThreadOperation.pass_moves` (`wop/core/program_model/operations.py`): the passes move by move exactly as LinuxCNC's
+  G76 makes them (depth schedule J x i^(1/R) up to K, the compound-angle shift, retract by K - d, spring passes); a
+  tapered run-in or run-out ramps from the crest. The picture and the checks use these moves.
+- New `threading_style = synced_passes` in the post definition, a `[thread_move]` concept and a `<lead>` token (G33 K
+  measured along the move): `wop/post/concepts.py`, `wop/post/engine.py`, `wop/post/post_definition.py`,
+  `wop/post/tokens.py`. The shipped `linuxcnc.post.ini` gets `thread_feed = G33` and the template; **its default stays
+  G76**.
+- The G76 end-position fix described above.
+- `tests/test_thread_passes.py`: pinned to rs274's G76 expansion, plus a live comparison with `rs274` when LinuxCNC is
+  installed (144 cases matched move for move).
+
+### 2. Tapered threads and pipe threads (`d411501`)
+
+- `ThreadingBlock.taper_per_100_mm`: a thread along a cone (crest diameter at the start Z, growing per 100 mm towards
+  the chuck; negative shrinks, as an inside pipe thread). The band, the material check, the flank run-out and the
+  approach follow the cone; `ThreadOperation.crest_slope` makes the passes follow the crest.
+- A cycle post (G76, packed Fanuc words) refuses a tapered thread with a message that names `synced_passes`.
+- Designations `R 1/2`, `Rc 1/2`, `BSPT 1/2` (ISO 7-1) and `1/2 NPT`, `1/2-14 NPT` (ASME B1.20.1) fill pitch, crest,
+  depth, flank angle, taper and the end Z (thread length of the standard). Rows and formulas come from the user's own
+  LinuxCNC "Turning panel" (`thread_data.py`), checked there against the standards and gauges; all 68 values match it.
+- `tests/test_pipe_threads.py`.
+
+### 3. Facing: stock on the face (`c632103`)
+
+Why: the user zeroes Z on the finished face and saws the bar a few mm long; the raw part should not have to show that
+slab.
+
+- `FacingBlock.face_stock_mm`: a slab in front of the material that this block takes off, for this block only. Outside
+  in and centre out; a tube gets the slab from its bore out. The slab is not drawn as raw material.
+- Preferences `FACING_TARGET_Z_MM`, `FACING_FACE_STOCK_MM` (entries in `wop/core/conventions.py`).
+- `tests/test_facing_stock.py`; examples regenerated.
+
+### 4. Contour from points (`ec6b614`)
+
+Why: typing a turned profile as a list of points is quicker than drawing it, and the user's Turning panel already uses
+that text format.
+
+- `wop/core/sketch/points_profile.py`: rows (X, Z, a radius `R` or chamfer `C` at the corner) become a sketch of lines
+  with the sketch's own fillets and chamfers; a sketch reads back into rows; the text format `X Z [R.. | C..]` (X as a
+  diameter).
+- `AppModel.contour_from_rows` / `contour_rows` (with undo); `wop/ui/qt/points_dialog.py` (table, live picture, Paste
+  text...); Add block > "Contour from points..." and "Edit as points..." on the contour panel.
+- `tests/test_points_profile.py` (core, model, the real dialog offscreen).
+
+### 5. Crest check as a warning; menu of standard threads (`5a61b19`)
+
+- The warning: see "Behaviour that changes" 1. `wop/core/blocks/threading.py`.
+- A ▼ arrow inside the Thread text field opens a menu of standard threads by family (metric coarse, metric fine by
+  diameter, Tr, UNC, UNF, BSPT with R outside / Rc inside, NPT); typing stays free. `standard_designations` in
+  `wop/core/thread_designation.py`.
+- `tests/test_thread_menu.py`.
+
+### 6. X2, the crest diameter at the end Z (`8a7e92e`)
+
+Why: on a tapered thread the user wants to see, and be able to type, the diameter at the back.
+
+- `ThreadingBlock.end_crest_radius_mm` (a property, not stored) and `with_end_crest_radius_mm` (sets
+  `taper_per_100_mm`). The taper stays the stored value, so the file format does not change.
+- `tests/test_thread_x2.py`.
+
+### 7. Thread depth for partial-profile inserts (`f42f799`, `ab3e6a3`)
+
+Why: a partial-profile insert (one insert for many pitches, with its own tip radius) must go deeper than the standard
+depth on coarse pitches; cutting the full-form depth with a 0.2 mm tip leaves an M24 x 3 thread 0.47 mm oversize on the
+diameter. The user's Turning panel already does this and it was checked on the machine with gauges.
+
+- `wop/core/thread_form.py` (new): `ThreadForm` (ISO / Unified 60, Whitworth / BSP 55, NPT 60 with flat root,
+  trapezoidal), `full_profile_depth`, `tip_correction`. A tip radius r sits back from the tool's own virtual apex by
+  r x k, k = 1 / sin(angle / 2) - 1, so the depth is h_std x P + (r_std x P - r) x k (zero for a full-profile insert;
+  negative for a blunter tip on a fine pitch). NPT's 0.033 P truncation enters as the setback of a radius with the
+  same effect. Trapezoidal threads get no correction. Identical to the panel's `thread_depth` in 576 cases
+  (4 forms x 12 pitches x 2 sides x 6 radii).
+- Threading tool: `ThreadDefinition.profile` (Full / Partial) above "Tip radius" (`wop/core/tool_types/thread.py`);
+  partial uses `nose_radius_mm`. Decision of the user: from the tool data, not a box in the block, so the insert is
+  described once and the picture, the checks and the depth use the same radius.
+- Threading block: `thread_form` (set by a designation, editable for a custom thread) and `tip_correction` (ticked).
+  Empty depth = auto and shown in the field; typed = cut as typed (the panel's behaviour).
+- Metric coarse M1 to M100 and the ISO 261 fine pitches (50 sizes, 127 fine pitches) come from the panel's table; the
+  menu groups the fine pitches by diameter. `METRIC_THREADS` in `wop/core/constants.py`; `METRIC_COARSE_PITCHES` is
+  derived from it.
+- `tests/test_thread_tip.py` (reference depths printed by the panel).
+
+### 8. Fix: File > New with a tool chosen in the Tools view (`76e1fc4`)
+
+`AppModel.selected_tool` was kept when the project was replaced (File > New, Open, Undo of adding the tool); the tool
+form then asked for a tool that no longer existed and the window crashed with `BlockError: tool T1 is not defined`.
+`_drop_missing_tool` (`wop/ui/model/tools.py`) clears it after every change, as `_drop_missing_contour` does for
+contours. Tests in `tests/test_app_model.py` (`ChosenToolGoneTests`).
+
+## New generic form hooks
+
+Three small additions to the form framework (`wop/ui/block_forms.py`, `wop/ui/qt/form_panel.py`); any block or form can
+use them. They are listed in `CLAUDE.md` with the other hooks.
+
+| Hook on the object | FieldSpec field | What it does |
+|---|---|---|
+| `field_suggestions()` -> {name: entries} | `suggestions` | A ▼ menu inside a text field; an entry is a value or `(heading, entries)` for a submenu. Typing stays free. |
+| `form_computed_fields()` -> {name: label} | `computed` | A property shown as a float field; typing it calls `with_<name>(value)` (`set_value` does this). Never dimmed, no "Reset to default"; typing it marks the fields it changed as touched. |
+| `form_tool_notes(tool)`, `form_tool_placeholders(tool)` | `placeholder` | Notes and the grey text of an empty optional field that depend on the object's chosen tool; `FormContext.tool_objects` carries the program's tools. |
+
+The window also shows the form again after an edit of a block that has computed fields, so the computed field and its
+sources follow each other (`wop/ui/qt/window_parts/form.py`).
+
+## Values that are guessed (GUESS)
+
+- `TRAPEZOIDAL_THREADS` (the Tr list in the menu): the ISO 2904 preferred pitch per diameter as remembered, not checked
+  against the standard. Marked GUESS in `wop/core/constants.py` and the design notes.
+
+All other new tables (BSPT, NPT, metric ISO 261, the thread forms) come from the user's Turning panel, where they were
+checked against the standards and on the machine.
+
+## Not part of this branch
+
+The user's own settings live outside the repository and are not committed: the "Big Blue lathe" machine, a custom
+post `big_blue.post.ini` (Fanuc-style `T0303 M6`, no `G43 H` because the machine's tool-change remap applies the
+offsets, `threading_style = synced_passes`, footer G97/M9/M30), and two presets in `conventions.json`
+(`FACING_TARGET_Z_MM` 0, `FACING_FACE_STOCK_MM` 2).
+
+## Tested
+
+- The full suite (`tools/run_tests.py`, about 2390 tests) before every commit, with an empty `XDG_CONFIG_HOME` so the
+  user's presets do not change the example tests. One Qt hover test (`tests/test_style_pictures.py`) failed once under
+  load and passed on every rerun; it was not touched.
+- The example projects were regenerated with `tools/make_block_examples.py` where a model change needed it.
+- On the machine, by the user: the tapered G33 passes look right in AXIS; X2 shows and sets the taper; the menu of
+  threads; the partial-profile depth (M24x3, tip R0.4: auto 1.8733). Nothing has been cut in metal yet.
+
+## Merging
+
+- The commits are in feature order and each one passes the suite on its own. `5a61b19` to `ab3e6a3` build on each other
+  (all threading); `c632103` and `ec6b614` stand alone.
+- Likely conflict spots if the upstream code has moved on: `wop/core/blocks/threading.py`, `wop/core/constants.py`
+  (new constants were put in the thread section, below `NOT_EDITABLE_BELOW`), `wop/ui/block_forms.py`,
+  `docs/wop_02_requirements.md` (new IDs C16, N54 to N60, O35, O36, X16; if they clash with IDs used upstream, renumber
+  them here, never upstream).
+- After a merge: run `tools/make_*.py` for the examples, then the suite.
