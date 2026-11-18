@@ -95,7 +95,7 @@ Rules for this list:
 | C5 | One contour shared by several blocks | Editing it changes both blocks; deleting a used one is refused. | Done |
 | C9 | Contours are entries in the flow list | `tests/test_contour_selection.py`, `tests/test_qt_real.py` | Done |
 | C14 | Deleting a used contour offers three choices | Abort, delete with the blocks, or keep the blocks without a contour. | Done |
-| C16 | A contour typed as points (X, Z, R or C per corner) | Add block > Contour from points and Edit as points...; the rows round-trip through the sketch; the Turning panel's text is read (`tests/test_points_profile.py`). | Done, not tried |
+| C16 | A contour typed as points (X, Z, R or C per corner) | Add block > Contour from points and Edit as points...; the rows round-trip through the sketch; the Turning panel's text is read (`tests/test_points_profile.py`). | Done, tried by the user 2026-11-18 (table and Paste text) |
 | C10 | A block without a valid contour is left out | The export marks the program incomplete (DO NOT RUN). | Done |
 | C8 | Crossings are checked | A crossing is reported with element numbers and cannot be used (`tests/test_sketch_modes.py`). | Done |
 | C2 | Corner with a tangent radius by coordinates or intersection | Both inputs give the same contour. | Done |
@@ -210,7 +210,7 @@ Rules for this list:
 | X1 | Complex turning with automatic roughing | Roughing leaves the allowance and cuts nothing beyond the contour. | Done |
 | X5 | Facing block | The residual has a flat face at the given Z. | Done |
 | X9 | Facing overtravel past the centre | The preset follows the tool. | Done |
-| X16 | Stock on the face of a facing block | 2 mm of stock and target Z0 on a part whose face is Z0: passes at Z1 and Z0, the part ends at Z0 (`tests/test_facing_stock.py`). | Done, not tried |
+| X16 | Stock on the face of a facing block | 2 mm of stock and target Z0 on a part whose face is Z0: passes at Z1 and Z0, the part ends at Z0 (`tests/test_facing_stock.py`). | Done, tried by the user 2026-11-18 |
 | X6 | Turning block, simple form | The residual equals the expected shape in both directions. | Done |
 | X13 | Taper in the simple turning block | A taper of 10 degrees gives the radius 10 + 30 tan 5 degrees at 30 mm. | Done |
 | X14 | Taper input as angle or rise per 100 mm | Switching shows the same taper the other way. | Done |

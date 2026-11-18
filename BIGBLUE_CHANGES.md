@@ -190,7 +190,11 @@ offsets, `threading_style = synced_passes`, footer G97/M9/M30), and two presets 
   load and passed on every rerun; it was not touched.
 - The example projects were regenerated with `tools/make_block_examples.py` where a model change needed it.
 - On the machine, by the user: the tapered G33 passes look right in AXIS; X2 shows and sets the taper; the menu of
-  threads; the partial-profile depth (M24x3, tip R0.4: auto 1.8733). Nothing has been cut in metal yet.
+  threads; the partial-profile depth (M24x3, tip R0.4: auto 1.8733); stock on the face; contour from points with
+  Paste text; File > New after the fix. Nothing has been cut in metal yet.
+- Latency (LinuxCNC servo thread 1 ms, the sim, 60 s each): with WOP planning flat out on the three housekeeping cores,
+  servo period jitter 7.7 µs (99 %) / 105 µs worst, against 6.4 / 85 µs with WOP idle; the realtime thread is on an
+  isolated core, and WOP never runs there.
 
 ## Merging
 
