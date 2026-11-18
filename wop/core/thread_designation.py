@@ -25,6 +25,7 @@ from fractions import Fraction
 from .constants import (
     BSPT_THREADS,
     METRIC_COARSE_PITCHES,
+    METRIC_FINE_THREADS,
     NPT_THREADS,
     MM_PER_INCH,
     NUMBERED_SCREW_BASE_IN,
@@ -47,6 +48,7 @@ from .constants import (
     THREAD_TRAPEZOID_CLEARANCES,
     THREAD_TRAPEZOID_FLANK_HALF_ANGLE_DEG,
     THREAD_TRAPEZOID_HEIGHT_FACTOR,
+    TRAPEZOIDAL_THREADS,
     UNC_THREADS,
     UNF_THREADS,
     TAPER_PER_100_MM,
@@ -276,6 +278,21 @@ def parse_designation(text: str) -> ThreadSpec:
         name = f"{label}-{_text(tpi)}" + (f" {series.upper()}" if found["series"] else "")
         return _checked(ThreadSpec(name, UNIFIED, inches * MM_PER_INCH, MM_PER_INCH / tpi))
     raise ThreadDesignationError(f"cannot read {wanted!r} as a thread; write for example {EXAMPLES}")
+
+
+def standard_designations(outside: bool) -> tuple[tuple[str, tuple[str, ...]], ...]:
+    """The standard threads of the form's menu, by family: (heading, designations). Every one is read by parse_designation.
+    BSPT lists R (outside) or Rc (inside) for the side; the other families are the same on both sides."""
+    pipe = "R" if outside else "Rc"
+    return (
+        ("Metric coarse (ISO 261)", tuple(f"M{_text(d)}x{_text(p)}" for d, p in METRIC_COARSE_PITCHES)),
+        ("Metric fine", tuple(f"M{_text(d)}x{_text(p)}" for d, p in METRIC_FINE_THREADS)),
+        ("Trapezoidal (Tr)", tuple(f"Tr{_text(d)}x{_text(p)}" for d, p in TRAPEZOIDAL_THREADS)),
+        ("UNC", tuple(f"{size}-{_text(tpi)} UNC" for size, tpi in UNC_THREADS)),
+        ("UNF", tuple(f"{size}-{_text(tpi)} UNF" for size, tpi in UNF_THREADS)),
+        (f"BSPT taper ({pipe}, ISO 7-1)", tuple(f"{pipe} {row[0]}" for row in BSPT_THREADS)),
+        ("NPT taper (ASME B1.20.1)", tuple(f"{row[0]}-{_text(row[2])} NPT" for row in NPT_THREADS)),
+    )
 
 
 def _checked(spec: ThreadSpec) -> ThreadSpec:

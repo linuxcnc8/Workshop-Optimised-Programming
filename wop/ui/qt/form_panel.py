@@ -17,6 +17,7 @@ from PySide6.QtWidgets import (
     QMenu,
     QPlainTextEdit,
     QPushButton,
+    QStyle,
     QToolButton,
     QWidget,
 )
@@ -412,6 +413,8 @@ class FormPanel(QWidget):
         if kind is FieldKind.TEXT:
             line = QLineEdit(str(value))
             line.editingFinished.connect(lambda s=spec, w=line: self._emit(s, w.text()))
+            if spec.suggestions:
+                self._add_suggestions(spec, line)
             return line
         if kind is FieldKind.MULTILINE:
             edit = QPlainTextEdit(str(value))
@@ -440,6 +443,21 @@ class FormPanel(QWidget):
         combo.setCurrentIndex(values.index(value))
         combo.currentIndexChanged.connect(lambda index, s=spec, v=values: self._chosen(s, v, index))
         return combo
+
+    def _add_suggestions(self, spec: FieldSpec, line: QLineEdit) -> None:
+        """A drop-down arrow inside the text field: a menu with a submenu per group; a picked value is put in the field and taken."""
+        menu = QMenu(line)
+        for heading, values in spec.suggestions:
+            group = menu.addMenu(heading)
+            for text in values:
+                group.addAction(text).triggered.connect(lambda _checked=False, s=spec, w=line, t=text: self._suggested(s, w, t))
+        arrow = line.addAction(line.style().standardIcon(QStyle.SP_ArrowDown), QLineEdit.TrailingPosition)
+        arrow.setToolTip("Pick from the list")
+        arrow.triggered.connect(lambda: menu.exec(line.mapToGlobal(QPoint(0, line.height()))))
+
+    def _suggested(self, spec: FieldSpec, line: QLineEdit, text: str) -> None:
+        line.setText(text)
+        self._emit(spec, text)
 
     def _chosen(self, spec: FieldSpec, values: list, index: int) -> None:
         if index < 0 or self._loading:

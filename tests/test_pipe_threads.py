@@ -120,11 +120,14 @@ class TaperedBlockTests(unittest.TestCase):
             generate_gcode(plan, shipped_post(), PostSettings(XInputMode.DIAMETER))
         self.assertIn("synced_passes", str(caught.exception))
 
-    def test_material_beyond_the_cone_is_refused_with_both_diameters(self):
+    def test_material_beyond_the_cone_is_a_warning_with_both_diameters_and_the_thread_is_written(self):
         plan = plan_program(self.program(designated("R 1/2"), raw=RawPart("steel", 22, 60)))
-        message = plan.blocks[0].result.messages[0]
+        result = plan.blocks[0].result
+        message = result.messages[0]
+        self.assertIn("WARNING", message)
         self.assertIn("turn or bore the cone first", message)
         self.assertIn("20.442", message)
+        self.assertTrue([op for op in result.operations if isinstance(op, ThreadOperation)])
 
 
 if __name__ == "__main__":

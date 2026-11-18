@@ -222,6 +222,17 @@ UNF_THREADS = (
     ("#12", 28), ("1/4", 28), ("5/16", 24), ("3/8", 24), ("7/16", 20), ("1/2", 20), ("9/16", 18), ("5/8", 18),
     ("3/4", 16), ("7/8", 14), ("1", 12), ("1 1/8", 12), ("1 1/4", 12), ("1 3/8", 12), ("1 1/2", 12),
 )
+# The list of standard threads in the threading form (a menu; the field still takes any designation)
+METRIC_FINE_THREADS = (  # GUESS: common ISO 261 fine pitches (major diameter mm, pitch mm), not the whole table
+    (6, 0.75), (8, 1), (10, 1), (10, 1.25), (12, 1.25), (12, 1.5), (14, 1.5), (16, 1.5), (18, 1.5), (20, 1.5), (22, 1.5),
+    (24, 1.5), (24, 2), (27, 2), (30, 1.5), (30, 2), (33, 2), (36, 1.5), (36, 2), (36, 3), (39, 3), (42, 2), (42, 3),
+    (45, 1.5), (45, 3), (48, 2), (48, 3), (52, 3), (56, 2), (56, 4), (60, 4), (64, 4),
+)
+TRAPEZOIDAL_THREADS = (  # GUESS: ISO 2904 preferred pitch per diameter (major diameter mm, pitch mm)
+    (8, 1.5), (10, 2), (12, 3), (14, 3), (16, 4), (18, 4), (20, 4), (22, 5), (24, 5), (26, 5), (28, 5), (30, 6), (32, 6),
+    (34, 6), (36, 6), (38, 7), (40, 7), (42, 7), (44, 7), (46, 8), (48, 8), (50, 8), (52, 8), (55, 9), (60, 9), (65, 10),
+    (70, 10), (75, 10), (80, 10),
+)
 THREAD_TOOL_TIP_HEIGHT_MM = 3  # the 60 degree point of the preset tool, tip to the holder
 THREAD_TOOL_HOLDER_LENGTH_MM = 25
 EXAMPLE_THREAD_CREST_RADIUS_MM = 15

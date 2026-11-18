@@ -55,7 +55,7 @@ from ..program_model.operations import (
     ThreadTaper,
 )
 from ..geometry.region import Region
-from ..thread_designation import ThreadDesignationError, parse_designation
+from ..thread_designation import ThreadDesignationError, parse_designation, standard_designations
 from ..tooling.tool import flank_angles_by_side, flank_reach_by_side
 from .base import BLOCK_TYPES, Block, BlockContext, BlockError, BlockResult
 from .sweep import Sweeper
@@ -96,7 +96,7 @@ class ThreadingBlock(Block):
 
     def form_labels(self) -> dict[str, str]:
         return {
-            "spindle.value": "Spindle RPM", "designation": "Thread (M8x1, Tr40x7, 1/4-20 UNC)", "crest_radius_mm": "Crest X radius", "pitch_mm": "Pitch",
+            "spindle.value": "Spindle RPM", "designation": "Thread (type, or pick from the list)", "crest_radius_mm": "Crest X radius", "pitch_mm": "Pitch",
             "start_z_mm": "Start Z (front)", "end_z_mm": "End Z",
             "taper_per_100_mm": "Thread taper (diameter per 100 mm; 1:16 = 6.25)", "thread_depth_mm": "Thread depth",
             "first_cut_depth_mm": "First cut depth", "degression": "Degression", "compound_angle_deg": "Compound angle",
@@ -105,6 +105,10 @@ class ThreadingBlock(Block):
 
     def form_hidden(self) -> frozenset[str]:
         return frozenset({"spindle.mode", "spindle.rpm_limit"})  # a thread is cut at a fixed RPM
+
+    def field_suggestions(self) -> dict[str, tuple[tuple[str, tuple[str, ...]], ...]]:
+        """The menu of standard threads beside the designation (by family); the field still takes any designation."""
+        return {"designation": standard_designations(self.side is TurningSide.OUTSIDE)}
 
     def form_relative_ends(self) -> dict[str, tuple[str, str]]:
         return {"end_z_mm": ("start_z_mm", "Length")}  # end field -> (start field, label when shown as a length)
@@ -279,11 +283,14 @@ class ThreadingBlock(Block):
             return crest_at(z) + sign * THREAD_CREST_TOLERANCE_MM
 
         outer = (lambda _z: top) if sign > 0 else (lambda _z: 0.0)
+        crest_warnings: tuple[str, ...] = ()  # a warning only (the user's decision, 2026-11-18): the thread is written anyway
         if not residual.intersection(self._between(z_end, z_start, beyond, outer)).is_empty:
             if self.crest_slope:
-                return refuse(f"there is material beyond the crest, turn or bore the cone first (diameter {2 * crest_at(z_start):.3f} at Z "
-                              f"{z_start:g} to {2 * crest_at(z_end):.3f} at Z {z_end:g})")
-            return refuse(f"there is material beyond the crest radius, turn or bore the thread diameter first (to diameter {2 * self.crest_radius_mm:.3f})")
+                crest_warnings = (f"threading: WARNING: there is material beyond the crest, turn or bore the cone first (diameter "
+                                  f"{2 * crest_at(z_start):.3f} at Z {z_start:g} to {2 * crest_at(z_end):.3f} at Z {z_end:g}); the thread is written anyway",)
+            else:
+                crest_warnings = (f"threading: WARNING: there is material beyond the crest radius, turn or bore the thread diameter first "
+                                  f"(to diameter {2 * self.crest_radius_mm:.3f}); the thread is written anyway",)
         # the tool flanks run out a little beyond both ends of the thread
         margin_band = self._between(z_end - flank_low, z_start + flank_high, crest_at, root_at)
         sweeper = Sweeper(context, residual.difference(margin_band))
@@ -342,4 +349,4 @@ class ThreadingBlock(Block):
                 leave = [Rapid(up), Rapid(Point(safe_radius, z_front)), Rapid(safe_point)]
         operations = (header, *approach, operation, *leave, footer)
         removed = residual.intersection(margin_band)
-        return BlockResult(operations, removed, (*reach_notes, *notes, *self._designation_messages(context.tool.shape)))
+        return BlockResult(operations, removed, (*crest_warnings, *reach_notes, *notes, *self._designation_messages(context.tool.shape)))

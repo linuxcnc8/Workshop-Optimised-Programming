@@ -152,6 +152,7 @@ class FieldSpec:
     preview: str = ""  # CHOICE of styles: the block type whose style pictures are shown when an entry of the list is hovered
     minimum: float | None = None  # a number outside these limits is refused
     maximum: float | None = None
+    suggestions: tuple[tuple[str, tuple[str, ...]], ...] = ()  # TEXT: a menu of values by group (heading, values); typing stays free
 
     def display_label(self, x_mode: XInputMode) -> str:
         if self.is_radius and x_mode is XInputMode.DIAMETER:
@@ -338,6 +339,13 @@ def form_for(obj: Any, context: FormContext = FormContext()) -> list[FieldSpec]:
         specs = [
             dataclasses.replace(spec, kind=FieldKind.CHOICE, choices=tuple(Choice(v, text) for v, text in lists[spec.path[0]]))
             if len(spec.path) == 1 and spec.path[0] in lists else spec
+            for spec in specs
+        ]
+    menus = getattr(obj, "field_suggestions", None)  # an object may offer a menu of values beside some of its text fields
+    if callable(menus):
+        offered = menus()
+        specs = [
+            dataclasses.replace(spec, suggestions=offered[spec.path[0]]) if len(spec.path) == 1 and spec.path[0] in offered and spec.kind is FieldKind.TEXT else spec
             for spec in specs
         ]
     specs = _with_function_fields(obj, specs, context)

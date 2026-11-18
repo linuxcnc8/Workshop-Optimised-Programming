@@ -94,12 +94,13 @@ class ThreadingTests(unittest.TestCase):
         run_out = 1 * 0.5773502691896257
         self.assertAlmostEqual(plan.blocks[0].result.removed.area, 1 * (15 + 2 * run_out), delta=0.6)  # the sandbox stand-in is coarse, the exact region is exact
 
-    def test_material_beyond_the_crest_is_refused(self):
+    def test_material_beyond_the_crest_is_a_warning_and_the_thread_is_written(self):
         plan = plan_program(program(block(crest_radius_mm=12)))
         result = plan.blocks[0].result
         self.assertTrue(result.messages)
+        self.assertIn("WARNING", result.messages[0])
         self.assertIn("turn or bore", result.messages[0])
-        self.assertFalse([op for op in result.operations if isinstance(op, ThreadOperation)])
+        self.assertTrue([op for op in result.operations if isinstance(op, ThreadOperation)])
 
     def test_an_inside_thread_in_a_bore(self):
         raw = RawPart("steel", 100, 60, inner_diameter_mm=80)  # wide enough for the 28 mm long tool body
