@@ -152,7 +152,7 @@ Rules for this list:
 | N17 | Threading tool (standard shape) | The example thread has no findings. | Done |
 | N9 | Run-out of a threading tool from its flank angle | A drawn V gives its own angle; the standard tool 30 degrees. | Done |
 | N11 | Thread designation fills the thread values | Values match the standard tables; editing a derived number clears the designation. | Done |
-| N54 | Tapered threads (a cone along Z) | The passes follow the crest line; the full depth ends on the end Z; a G76 post refuses it (`tests/test_pipe_threads.py`). | Done, not run on a machine |
+| N54 | Tapered threads (a cone along Z) | The passes follow the crest line; the full depth ends on the end Z; a G76 post refuses it (`tests/test_pipe_threads.py`). | Done; G33 passes checked by the user in AXIS 2026-11-18, not yet cut |
 | N55 | Pipe thread designations BSPT (R, Rc) and NPT | R 1/2, Rc 1/2 and 1/2 NPT give the numbers of the big-blue Turning panel's table, with the taper and the end Z (`tests/test_pipe_threads.py`). | Done, not run on a machine |
 | N56 | Menu of standard threads beside the designation | Every entry (metric coarse and fine, Tr, UNC, UNF, BSPT R or Rc by side, NPT) is read as written; picking one fills the field (`tests/test_thread_menu.py`). | Done, not tried by the user |
 | N58 | X2: crest diameter at the end Z of a thread | Shown worked out from crest, taper and length (1/2 NPT: 21.563); typing it sets the taper per 100 mm (`tests/test_thread_x2.py`). | Done, tried by the user 2026-11-18 (shown and typed) |
