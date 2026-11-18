@@ -98,7 +98,7 @@ FIELD_NOTES = {
         "Ticked: the depth is where the hole has its full diameter, the point of the drill goes deeper. "
         "Not ticked: the tip of the drill reaches the depth."
     ),
-    "thread_depth_mm": "Empty: the ISO metric depth from the pitch (G76 K). The first cut depth is G76 J.",
+    "thread_depth_mm": "Empty: from the thread form and the pitch (G76 K). The first cut depth is G76 J.",
     "degression": "1 = the same depth every pass, 2 = the same area every pass, above 2 = decreasing area and many passes (G76 R).",
     "compound_angle_deg": "How far successive passes are offset along the thread so one flank cuts more; typical 29, 29.5 or 30 (G76 Q).",
     "taper_distance_mm": "Length of the tapered entry or exit along the thread, at most half the thread length (G76 E); the same as the depth gives 45 degrees.",
@@ -153,6 +153,7 @@ class FieldSpec:
     minimum: float | None = None  # a number outside these limits is refused
     maximum: float | None = None
     suggestions: tuple = ()  # TEXT: a menu: entries are values or (heading, entries) submenus; typing stays free
+    placeholder: str = ""  # OPTIONAL_FLOAT: the grey text of the empty field (default "not set")
     computed: bool = False  # worked out from other fields (a property of the object); typing it sets them (`with_<name>`)
 
     def display_label(self, x_mode: XInputMode) -> str:
@@ -194,6 +195,7 @@ class FormContext:
     functions: tuple[FunctionChoice, ...] | None = None  # the functions of the post; None: the function field is plain text
     workholding: tuple[tuple[str, str], ...] | None = None  # (name, label) of the items on offer; None: plain text
     jaw_points: tuple[str, ...] = ()  # the named points of the chosen jaws
+    tool_objects: tuple = ()  # the tools of the program (for `form_tool_notes`: what the chosen tool changes)
 
 
 # --- building the description ---------------------------------------------------
@@ -373,6 +375,15 @@ def form_for(obj: Any, context: FormContext = FormContext()) -> list[FieldSpec]:
     if callable(notes):
         texts = notes()
         specs = [dataclasses.replace(s, note=texts[s.path[0]]) if len(s.path) == 1 and s.path[0] in texts else s for s in specs]
+    tool_notes = getattr(obj, "form_tool_notes", None)  # notes that depend on the chosen tool (the depth a threading tool cuts)
+    if callable(tool_notes):
+        tool = next((t for t in context.tool_objects if t.number == getattr(obj, "tool_number", None)), None)
+        texts = tool_notes(tool)
+        specs = [dataclasses.replace(s, note=texts[s.path[0]]) if len(s.path) == 1 and s.path[0] in texts else s for s in specs]
+        hints = getattr(obj, "form_tool_placeholders", None)  # the grey text of an empty field (the auto depth with this tool)
+        if callable(hints):
+            texts = hints(tool)
+            specs = [dataclasses.replace(s, placeholder=texts[s.path[0]]) if len(s.path) == 1 and s.path[0] in texts else s for s in specs]
     labels = getattr(obj, "form_labels", None)  # an object may word a label differently from other blocks: name -> text
     if callable(labels):
         texts = labels()

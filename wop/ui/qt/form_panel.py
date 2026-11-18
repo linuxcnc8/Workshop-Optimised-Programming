@@ -407,7 +407,7 @@ class FormPanel(QWidget):
             return box
         if kind is FieldKind.OPTIONAL_FLOAT:
             line = QLineEdit("" if value is None else f"{value:g}")
-            line.setPlaceholderText("not set")
+            line.setPlaceholderText(spec.placeholder or "not set")
             line.editingFinished.connect(lambda s=spec, w=line: self._from_text(s, w.text()))
             return line
         if kind is FieldKind.TEXT:

@@ -5,6 +5,8 @@ insert_r)`, whose arithmetic was checked on the machine against gauges (insert_r
 
 from __future__ import annotations
 
+import os
+import sys
 import unittest
 from dataclasses import replace
 
@@ -18,7 +20,7 @@ from wop.core.tool_types import definition_of, make_tool
 from wop.core.tool_types.thread import ThreadDefinition, ThreadProfile
 from wop.post.base import PostSettings
 from wop.post.generate import generate_gcode
-from wop.ui.block_forms import form_for
+from wop.ui.block_forms import FormContext, form_for
 from tests.post_helpers import shipped_post
 
 NPT_PITCH = 25.4 / 14
@@ -78,9 +80,23 @@ class BlockDepthTests(unittest.TestCase):
         thread = block(pitch_mm=3, thread_depth_mm=1.9, tip_correction=False)
         self.assertEqual(thread.depth(thread_tool(ThreadProfile.PARTIAL, 0.2)), 1.9)
 
-    def test_a_typed_full_profile_depth_gets_the_correction_while_ticked(self):
+    def test_a_typed_depth_is_cut_as_typed_as_in_the_turning_panel(self):
         thread = block(pitch_mm=3, thread_depth_mm=1.9)
-        self.assertAlmostEqual(thread.depth(thread_tool(ThreadProfile.PARTIAL, 0.2)), 1.9 + 2.073317 - 1.840304, places=6)
+        self.assertEqual(thread.depth(thread_tool(ThreadProfile.PARTIAL, 0.2)), 1.9)
+        self.assertEqual(thread._depth_messages(thread_tool(ThreadProfile.PARTIAL, 0.2)), ())
+
+    def test_a_designation_leaves_the_depth_on_auto_and_the_form_shows_it(self):
+        blank = block(side=TurningSide.OUTSIDE)
+        m24 = replace(blank, designation="M24x3").with_derived_fields(blank)
+        self.assertIsNone(m24.thread_depth_mm)
+        partial, full = thread_tool(ThreadProfile.PARTIAL, 0.2), thread_tool(ThreadProfile.FULL, 0.2)
+        self.assertEqual(m24.form_tool_placeholders(partial), {"thread_depth_mm": "auto 2.0733"})
+        self.assertEqual(m24.form_tool_placeholders(full), {"thread_depth_mm": "auto 1.8403"})
+        self.assertIn("1.8403 + 0.2330", m24.form_tool_notes(partial)["thread_depth_mm"])
+        self.assertEqual(replace(m24, tip_correction=False).form_tool_placeholders(partial), {"thread_depth_mm": "auto 1.8403"})
+        spec = next(s for s in form_for(m24, FormContext(tool_objects=(partial,))) if s.path == ("thread_depth_mm",))
+        self.assertEqual(spec.placeholder, "auto 2.0733")
+        self.assertEqual(spec.label, "Thread depth")
 
     def test_a_tool_without_a_definition_is_taken_as_full_profile(self):
         from wop.core.tooling.tool_presets import thread_tool as shape_only
@@ -115,6 +131,35 @@ class BlockDepthTests(unittest.TestCase):
         tool = thread_tool(ThreadProfile.PARTIAL, 0.2)
         self.assertEqual(thread.depth(tool), thread.full_profile_depth())
         self.assertIn("no tip correction", thread._depth_messages(tool)[0])
+
+
+
+try:
+    import PySide6  # noqa: F401
+    HAVE_REAL_QT = not hasattr(sys.modules["PySide6"], "_fake")
+except ImportError:
+    HAVE_REAL_QT = False
+
+
+@unittest.skipUnless(HAVE_REAL_QT, "needs the real PySide6")
+class DepthFieldTests(unittest.TestCase):
+    def test_the_empty_depth_field_shows_the_auto_depth_of_the_tool(self):
+        os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+        from PySide6.QtWidgets import QApplication, QLineEdit
+
+        from wop.ui.qt.form_panel import FormPanel
+
+        QApplication.instance() or QApplication([])
+        blank = block(side=TurningSide.OUTSIDE)
+        m24 = replace(blank, designation="M24x3").with_derived_fields(blank)
+        panel = FormPanel()
+        panel.set_form(m24, form_for(m24, FormContext(tool_objects=(thread_tool(ThreadProfile.PARTIAL, 0.2),))), XInputMode.DIAMETER)
+        line = panel._widgets[("thread_depth_mm",)]
+        self.assertIsInstance(line, QLineEdit)
+        self.assertEqual(line.text(), "")
+        self.assertEqual(line.placeholderText(), "auto 2.0733")
+        panel.hide()
+        panel.deleteLater()
 
 
 if __name__ == "__main__":

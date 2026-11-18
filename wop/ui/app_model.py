@@ -195,6 +195,7 @@ class AppModel(
             functions=self.available_machine_functions(),
             workholding=self.workholding_choices(),
             jaw_points=self.jaw_point_names(),
+            tool_objects=self.program.tools,
         )
 
     def block_choices(self) -> list[tuple[str, str]]:

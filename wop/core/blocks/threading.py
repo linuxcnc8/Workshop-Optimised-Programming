@@ -77,8 +77,8 @@ class ThreadingBlock(Block):
     end_z_mm: float  # the thread ends here (lower Z), absolute; the form can show it as a length
     taper_per_100_mm: float = 0.0  # a tapered thread: the crest diameter grows by this per 100 mm towards the chuck (negative: shrinks)
     thread_form: ThreadForm = ThreadForm.ISO  # the depth for a full-profile insert and the tip correction (set by a designation)
-    thread_depth_mm: float | None = None  # for a full-profile insert; None: from the thread form and the pitch (G76 K)
-    tip_correction: bool = True  # a partial-profile tool goes deeper (or less deep) by the correction of its tip radius
+    thread_depth_mm: float | None = None  # the depth cut, as typed (G76 K); None: auto, from the thread form, the pitch and the tool
+    tip_correction: bool = True  # the auto depth of a partial-profile tool is corrected for its tip radius
     first_cut_depth_mm: float = THREAD_FIRST_CUT_MM  # G76 J
     degression: float = THREAD_DEGRESSION_CONSTANT_AREA  # G76 R: 1 same depth, 2 same area, more: decreasing area
     compound_angle_deg: float = THREAD_COMPOUND_ANGLE_DEG  # G76 Q
@@ -101,8 +101,8 @@ class ThreadingBlock(Block):
         return {
             "spindle.value": "Spindle RPM", "designation": "Thread (type, or pick from the list)", "crest_radius_mm": "Crest X radius", "pitch_mm": "Pitch",
             "start_z_mm": "Start Z (front)", "end_z_mm": "End Z",
-            "taper_per_100_mm": "Thread taper (diameter per 100 mm; 1:16 = 6.25)", "thread_depth_mm": "Thread depth (full profile)", "thread_form": "Thread form",
-            "tip_correction": "Correct the depth for a partial-profile tool",
+            "taper_per_100_mm": "Thread taper (diameter per 100 mm; 1:16 = 6.25)", "thread_depth_mm": "Thread depth", "thread_form": "Thread form",
+            "tip_correction": "Correct the auto depth for a partial-profile tool",
             "first_cut_depth_mm": "First cut depth", "degression": "Degression", "compound_angle_deg": "Compound angle",
             "spring_passes": "Spring passes", "taper": "Tapered at", "taper_distance_mm": "Taper length",
         }
@@ -215,7 +215,7 @@ class ThreadingBlock(Block):
         end_z = self.end_z_mm if values.length_mm is None else self.start_z_mm - values.length_mm
         return replace(
             self, designation=spec.designation, pitch_mm=values.pitch_mm, crest_radius_mm=values.crest_radius_mm,
-            thread_depth_mm=values.depth_mm, thread_form=spec.form, compound_angle_deg=values.compound_angle_deg,
+            thread_depth_mm=self._depth_to_keep(spec.form, values.pitch_mm, values.depth_mm), thread_form=spec.form, compound_angle_deg=values.compound_angle_deg,
             taper_per_100_mm=values.taper_per_100_mm, end_z_mm=end_z,
         )
 
@@ -240,15 +240,21 @@ class ThreadingBlock(Block):
                 )
         return tuple(messages)
 
+    def _depth_to_keep(self, form: ThreadForm, pitch: float, depth: float) -> float | None:
+        """A designation leaves the depth on auto (so it follows the tool), unless its depth is not the form's (a fit allowance)."""
+        auto = full_profile_depth(form, pitch, self.side is TurningSide.OUTSIDE)
+        return None if abs(depth - auto) <= GEOMETRY_TOLERANCE_MM else depth
+
     def full_profile_depth(self) -> float:
-        """The depth for a full-profile insert: as typed (or filled by a designation), else from the thread form."""
+        """The depth for a full-profile insert: as typed, else from the thread form and the pitch."""
         if self.thread_depth_mm is not None:
             return self.thread_depth_mm
         return full_profile_depth(self.thread_form, self.pitch_mm, self.side is TurningSide.OUTSIDE)
 
     def tip_radius_of(self, tool: Tool | None) -> float | None:
-        """The tip radius when the depth is corrected for it: a partial-profile threading tool and the box ticked; else None."""
-        if tool is None or not self.tip_correction:
+        """The tip radius when the auto depth is corrected for it: no typed depth, the box ticked and a partial-profile
+        threading tool; else None (a typed depth is cut as typed, as in the big-blue Turning panel)."""
+        if tool is None or not self.tip_correction or self.thread_depth_mm is not None:
             return None
         try:
             definition = definition_of(tool)
@@ -259,12 +265,40 @@ class ThreadingBlock(Block):
         return definition.nose_radius_mm
 
     def depth(self, tool: Tool | None = None) -> float:
-        """The radial depth that is cut: the full-profile depth plus the tip correction of a partial-profile tool
-        (`thread_form.tip_correction`, the arithmetic of the big-blue Turning panel)."""
+        """The radial depth that is cut: as typed; auto, the full-profile depth plus the tip correction of a partial-profile
+        tool (`thread_form.tip_correction`, the arithmetic of the big-blue Turning panel)."""
         base = self.full_profile_depth()
         tip = self.tip_radius_of(tool)
         correction = None if tip is None else tip_correction(self.thread_form, self.pitch_mm, self.side is TurningSide.OUTSIDE, tip)
         return base if correction is None else base + correction
+
+    def form_tool_notes(self, tool: Tool | None) -> dict[str, str]:
+        """Under the depth field: where the depth that is cut comes from (a partial-profile tool changes the auto depth)."""
+        clear = "Clear the field for the auto depth."
+        if self.thread_depth_mm is not None:
+            return {"thread_depth_mm": f"Cut as typed. {clear}"}
+        base = self.full_profile_depth()
+        if tool is None:
+            return {"thread_depth_mm": f"Auto: {base:.4f} from the thread form and the pitch. Type a depth to cut it as written."}
+        try:
+            definition = definition_of(tool)
+        except ToolError:
+            definition = None
+        if getattr(definition, "profile", None) is not ThreadProfile.PARTIAL:
+            return {"thread_depth_mm": f"Auto: {base:.4f} for T{tool.number} (full profile). Type a depth to cut it as written."}
+        tip = definition.nose_radius_mm
+        if not self.tip_correction:
+            return {"thread_depth_mm": f"Auto: {base:.4f} as for a full profile; T{tool.number} is partial profile (tip R{tip:g}): tick the box "
+                                       "below to correct the depth for it."}
+        correction = tip_correction(self.thread_form, self.pitch_mm, self.side is TurningSide.OUTSIDE, tip)
+        if correction is None:
+            return {"thread_depth_mm": f"Auto: {base:.4f} (no tip correction for a {self.thread_form.value} thread)."}
+        return {"thread_depth_mm": f"Auto: {base + correction:.4f} = full profile {base:.4f} {'+' if correction >= 0 else '-'} "
+                                   f"{abs(correction):.4f} for the tip of T{tool.number} (partial profile, R{tip:g}). Type a depth to cut it as written."}
+
+    def form_tool_placeholders(self, tool: Tool | None) -> dict[str, str]:
+        """The empty depth field shows the auto depth that is cut with the chosen tool."""
+        return {"thread_depth_mm": f"auto {self.depth(tool):.4f}"}
 
     def _depth_messages(self, tool: Tool | None) -> tuple[str, ...]:
         """What the depth was worked out from, when a partial-profile tool changes it."""

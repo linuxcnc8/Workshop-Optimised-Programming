@@ -95,14 +95,14 @@ class BlockTests(unittest.TestCase):
         edited = replace(thread_block(), designation="M8x1").with_derived_fields(thread_block())
         self.assertEqual(edited.designation, "M8x1")
         self.assertEqual((edited.pitch_mm, edited.crest_radius_mm), (1, 4))
-        self.assertAlmostEqual(edited.thread_depth_mm, 0.61343466)
+        self.assertAlmostEqual(edited.depth(), 0.61343466)  # left on auto: the form gives the depth
         self.assertEqual((edited.start_z_mm, edited.end_z_mm, edited.spindle, edited.first_cut_depth_mm), (0, -15, SPINDLE, 0.3))
 
     def test_changing_the_side_recomputes_the_numbers_of_the_designation(self):
         outside = replace(thread_block(), designation="M8x1").with_derived_fields(thread_block())
         inside = replace(outside, side=TurningSide.INSIDE).with_derived_fields(outside)
         self.assertAlmostEqual(inside.crest_radius_mm * 2, 6.9174, places=3)
-        self.assertAlmostEqual(inside.thread_depth_mm, 0.54126588)
+        self.assertAlmostEqual(inside.depth(), 0.54126588)
 
     def test_editing_a_derived_number_by_hand_clears_the_designation(self):
         outside = replace(thread_block(), designation="M8x1").with_derived_fields(thread_block())
