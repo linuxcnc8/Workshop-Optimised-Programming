@@ -25,7 +25,7 @@ from fractions import Fraction
 from .constants import (
     BSPT_THREADS,
     METRIC_COARSE_PITCHES,
-    METRIC_FINE_THREADS,
+    METRIC_THREADS,
     NPT_THREADS,
     MM_PER_INCH,
     NUMBERED_SCREW_BASE_IN,
@@ -45,7 +45,6 @@ from .constants import (
     THREAD_PIPE_TAPER,
     THREAD_PITCH_DIAMETER_FACTOR,
     THREAD_SIZE_MATCH_TOLERANCE_IN,
-    THREAD_TRAPEZOID_CLEARANCES,
     THREAD_TRAPEZOID_FLANK_HALF_ANGLE_DEG,
     THREAD_TRAPEZOID_HEIGHT_FACTOR,
     TRAPEZOIDAL_THREADS,
@@ -55,6 +54,7 @@ from .constants import (
     THREAD_WHITWORTH_DEPTH_FACTOR,
     THREAD_WHITWORTH_FLANK_HALF_ANGLE_DEG,
 )
+from .thread_form import ThreadForm, trapezoid_flank_height
 
 EXAMPLES = "M8, M8x1, M17.3x0.73, Tr40x7, 1/4-20 UNC, #10-24, R 1/2, Rc 1/2, 1/2 NPT"
 METRIC, TRAPEZOIDAL, UNIFIED, BSPT, NPT = "metric", "trapezoidal", "unified", "BSPT", "NPT"
@@ -98,13 +98,13 @@ class ThreadValues:
             return (
                 f"{designation} {kind}: taper 1:16 on the diameter; at Start Z ({plane}) major diameter {self.major_diameter_mm:.3f}, "
                 f"pitch diameter {self.pitch_diameter_mm:.3f}, minor diameter {self.minor_diameter_mm:.3f}"
-                f"{'' if outside else ' (the bore before cutting)'}; thread depth {self.depth_mm:.3f}; thread length of the standard "
+                f"{'' if outside else ' (the bore before cutting)'}; full-profile depth {self.depth_mm:.3f}; thread length of the standard "
                 f"{self.length_mm:.1f} (End Z); turn or bore the cone first"
             )
         return (
             f"{designation} {kind}: major diameter {self.major_diameter_mm:.3f}, pitch diameter "
             f"{self.pitch_diameter_mm:.3f}, minor diameter {self.minor_diameter_mm:.3f}"
-            f"{'' if outside else ' (the bore before cutting)'}, thread depth {self.depth_mm:.3f}"
+            f"{'' if outside else ' (the bore before cutting)'}, full-profile depth {self.depth_mm:.3f}"
         )
 
 
@@ -115,6 +115,13 @@ class ThreadSpec:
     major_diameter_mm: float
     pitch_mm: float
     pipe_row: tuple = ()  # the row of BSPT_THREADS or NPT_THREADS of a pipe thread
+
+    @property
+    def form(self) -> ThreadForm:
+        """The form whose depth and tip correction the block uses."""
+        if self.family == TRAPEZOIDAL:
+            return ThreadForm.TRAPEZOIDAL
+        return {BSPT: ThreadForm.WHITWORTH, NPT: ThreadForm.NPT}.get(self.family, ThreadForm.ISO)
 
     @property
     def flank_half_angle_deg(self) -> float:
@@ -151,20 +158,12 @@ class ThreadSpec:
             taper_per_100_mm=sign * THREAD_PIPE_TAPER * TAPER_PER_100_MM, length_mm=length,
         )
 
-    def _trapezoid_flank_height(self) -> float:
-        clearance = THREAD_TRAPEZOID_CLEARANCES[-1][1]
-        for limit, value in THREAD_TRAPEZOID_CLEARANCES:
-            if self.pitch_mm <= limit:
-                clearance = value
-                break
-        return THREAD_TRAPEZOID_HEIGHT_FACTOR * self.pitch_mm + clearance
-
     def values_for(self, outside: bool) -> ThreadValues:
         if self.pipe_row:
             return self._pipe_values(outside)
         d, pitch = self.major_diameter_mm, self.pitch_mm
         if self.family == TRAPEZOIDAL:
-            height = self._trapezoid_flank_height()
+            height = trapezoid_flank_height(pitch)
             pitch_diameter = d - THREAD_TRAPEZOID_HEIGHT_FACTOR * pitch
             bore = d - pitch  # basic minor diameter of the nut
             root_outside = d - 2 * height
@@ -280,13 +279,14 @@ def parse_designation(text: str) -> ThreadSpec:
     raise ThreadDesignationError(f"cannot read {wanted!r} as a thread; write for example {EXAMPLES}")
 
 
-def standard_designations(outside: bool) -> tuple[tuple[str, tuple[str, ...]], ...]:
-    """The standard threads of the form's menu, by family: (heading, designations). Every one is read by parse_designation.
+def standard_designations(outside: bool) -> tuple:
+    """The standard threads of the form's menu, by family: (heading, entries), an entry being a designation or a submenu
+    (heading, designations): the metric fine threads by diameter. Every designation is read by parse_designation.
     BSPT lists R (outside) or Rc (inside) for the side; the other families are the same on both sides."""
     pipe = "R" if outside else "Rc"
     return (
         ("Metric coarse (ISO 261)", tuple(f"M{_text(d)}x{_text(p)}" for d, p in METRIC_COARSE_PITCHES)),
-        ("Metric fine", tuple(f"M{_text(d)}x{_text(p)}" for d, p in METRIC_FINE_THREADS)),
+        ("Metric fine (ISO 261)", tuple((f"M{_text(d)}", tuple(f"M{_text(d)}x{_text(p)}" for p in fine)) for d, _coarse, fine in METRIC_THREADS)),
         ("Trapezoidal (Tr)", tuple(f"Tr{_text(d)}x{_text(p)}" for d, p in TRAPEZOIDAL_THREADS)),
         ("UNC", tuple(f"{size}-{_text(tpi)} UNC" for size, tpi in UNC_THREADS)),
         ("UNF", tuple(f"{size}-{_text(tpi)} UNF" for size, tpi in UNF_THREADS)),

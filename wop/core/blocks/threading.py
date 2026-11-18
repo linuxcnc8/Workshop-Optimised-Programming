@@ -33,8 +33,6 @@ from ..constants import (
     THREAD_COMPOUND_ANGLE_DEG,
     THREAD_COMPOUND_ANGLE_LIMIT_DEG,
     THREAD_DEGRESSION_CONSTANT_AREA,
-    THREAD_DEPTH_FACTOR_EXTERNAL,
-    THREAD_DEPTH_FACTOR_INTERNAL,
     THREAD_FIRST_CUT_MM,
     THREAD_FLANK_MISMATCH_DEG,
     THREAD_CREST_TOLERANCE_MM,
@@ -56,7 +54,10 @@ from ..program_model.operations import (
 )
 from ..geometry.region import Region
 from ..thread_designation import ThreadDesignationError, parse_designation, standard_designations
-from ..tooling.tool import flank_angles_by_side, flank_reach_by_side
+from ..thread_form import ThreadForm, full_profile_depth, tip_correction
+from ..tool_types.base import definition_of
+from ..tool_types.thread import ThreadProfile
+from ..tooling.tool import Tool, ToolError, flank_angles_by_side, flank_reach_by_side
 from .base import BLOCK_TYPES, Block, BlockContext, BlockError, BlockResult
 from .sweep import Sweeper
 from .turning_common import TurningSide
@@ -75,7 +76,9 @@ class ThreadingBlock(Block):
     start_z_mm: float  # the thread starts here (higher Z)
     end_z_mm: float  # the thread ends here (lower Z), absolute; the form can show it as a length
     taper_per_100_mm: float = 0.0  # a tapered thread: the crest diameter grows by this per 100 mm towards the chuck (negative: shrinks)
-    thread_depth_mm: float | None = None  # None: ISO metric from the pitch (G76 K)
+    thread_form: ThreadForm = ThreadForm.ISO  # the depth for a full-profile insert and the tip correction (set by a designation)
+    thread_depth_mm: float | None = None  # for a full-profile insert; None: from the thread form and the pitch (G76 K)
+    tip_correction: bool = True  # a partial-profile tool goes deeper (or less deep) by the correction of its tip radius
     first_cut_depth_mm: float = THREAD_FIRST_CUT_MM  # G76 J
     degression: float = THREAD_DEGRESSION_CONSTANT_AREA  # G76 R: 1 same depth, 2 same area, more: decreasing area
     compound_angle_deg: float = THREAD_COMPOUND_ANGLE_DEG  # G76 Q
@@ -86,8 +89,8 @@ class ThreadingBlock(Block):
     def form_fields(self) -> tuple[str, ...]:
         """The order of the form (the free comment is not shown)."""
         return (
-            "name", "side", "designation", "tool_number", "spindle", "crest_radius_mm", "pitch_mm", "start_z_mm", "end_z_mm",
-            "taper_per_100_mm", "end_crest_radius_mm", "thread_depth_mm", "first_cut_depth_mm", "degression", "compound_angle_deg", "spring_passes",
+            "name", "side", "designation", "thread_form", "tool_number", "spindle", "crest_radius_mm", "pitch_mm", "start_z_mm", "end_z_mm",
+            "taper_per_100_mm", "end_crest_radius_mm", "thread_depth_mm", "tip_correction", "first_cut_depth_mm", "degression", "compound_angle_deg", "spring_passes",
             "taper", "taper_distance_mm", "coolant",
         )
 
@@ -98,7 +101,8 @@ class ThreadingBlock(Block):
         return {
             "spindle.value": "Spindle RPM", "designation": "Thread (type, or pick from the list)", "crest_radius_mm": "Crest X radius", "pitch_mm": "Pitch",
             "start_z_mm": "Start Z (front)", "end_z_mm": "End Z",
-            "taper_per_100_mm": "Thread taper (diameter per 100 mm; 1:16 = 6.25)", "thread_depth_mm": "Thread depth",
+            "taper_per_100_mm": "Thread taper (diameter per 100 mm; 1:16 = 6.25)", "thread_depth_mm": "Thread depth (full profile)", "thread_form": "Thread form",
+            "tip_correction": "Correct the depth for a partial-profile tool",
             "first_cut_depth_mm": "First cut depth", "degression": "Degression", "compound_angle_deg": "Compound angle",
             "spring_passes": "Spring passes", "taper": "Tapered at", "taper_distance_mm": "Taper length",
         }
@@ -106,7 +110,7 @@ class ThreadingBlock(Block):
     def form_hidden(self) -> frozenset[str]:
         return frozenset({"spindle.mode", "spindle.rpm_limit"})  # a thread is cut at a fixed RPM
 
-    def field_suggestions(self) -> dict[str, tuple[tuple[str, tuple[str, ...]], ...]]:
+    def field_suggestions(self) -> dict[str, tuple]:
         """The menu of standard threads beside the designation (by family); the field still takes any designation."""
         return {"designation": standard_designations(self.side is TurningSide.OUTSIDE)}
 
@@ -202,6 +206,7 @@ class ThreadingBlock(Block):
         if same_thread and (
             previous.pitch_mm != self.pitch_mm or previous.crest_radius_mm != self.crest_radius_mm
             or previous.thread_depth_mm != self.thread_depth_mm or previous.taper_per_100_mm != self.taper_per_100_mm
+            or previous.thread_form is not self.thread_form
         ):
             return replace(self, designation="")
         if same_thread:
@@ -210,7 +215,7 @@ class ThreadingBlock(Block):
         end_z = self.end_z_mm if values.length_mm is None else self.start_z_mm - values.length_mm
         return replace(
             self, designation=spec.designation, pitch_mm=values.pitch_mm, crest_radius_mm=values.crest_radius_mm,
-            thread_depth_mm=values.depth_mm, compound_angle_deg=values.compound_angle_deg,
+            thread_depth_mm=values.depth_mm, thread_form=spec.form, compound_angle_deg=values.compound_angle_deg,
             taper_per_100_mm=values.taper_per_100_mm, end_z_mm=end_z,
         )
 
@@ -235,21 +240,52 @@ class ThreadingBlock(Block):
                 )
         return tuple(messages)
 
-    def depth(self) -> float:
+    def full_profile_depth(self) -> float:
+        """The depth for a full-profile insert: as typed (or filled by a designation), else from the thread form."""
         if self.thread_depth_mm is not None:
             return self.thread_depth_mm
-        factor = (
-            THREAD_DEPTH_FACTOR_EXTERNAL if self.side is TurningSide.OUTSIDE
-            else THREAD_DEPTH_FACTOR_INTERNAL
-        )
-        return factor * self.pitch_mm
+        return full_profile_depth(self.thread_form, self.pitch_mm, self.side is TurningSide.OUTSIDE)
+
+    def tip_radius_of(self, tool: Tool | None) -> float | None:
+        """The tip radius when the depth is corrected for it: a partial-profile threading tool and the box ticked; else None."""
+        if tool is None or not self.tip_correction:
+            return None
+        try:
+            definition = definition_of(tool)
+        except ToolError:
+            return None
+        if getattr(definition, "profile", None) is not ThreadProfile.PARTIAL:
+            return None
+        return definition.nose_radius_mm
+
+    def depth(self, tool: Tool | None = None) -> float:
+        """The radial depth that is cut: the full-profile depth plus the tip correction of a partial-profile tool
+        (`thread_form.tip_correction`, the arithmetic of the big-blue Turning panel)."""
+        base = self.full_profile_depth()
+        tip = self.tip_radius_of(tool)
+        correction = None if tip is None else tip_correction(self.thread_form, self.pitch_mm, self.side is TurningSide.OUTSIDE, tip)
+        return base if correction is None else base + correction
+
+    def _depth_messages(self, tool: Tool | None) -> tuple[str, ...]:
+        """What the depth was worked out from, when a partial-profile tool changes it."""
+        tip = self.tip_radius_of(tool)
+        if tip is None:
+            return ()
+        outside = self.side is TurningSide.OUTSIDE
+        correction = tip_correction(self.thread_form, self.pitch_mm, outside, tip)
+        if correction is None:
+            return (f"threading: partial-profile tool T{tool.number}: no tip correction for a {self.thread_form.value} thread; "
+                    f"depth {self.full_profile_depth():.4f} as for a full profile",)
+        return (f"threading: partial-profile tool T{tool.number} (tip R{tip:g}): depth {self.depth(tool):.4f} = full profile "
+                f"{self.full_profile_depth():.4f} {'+' if correction >= 0 else '-'} {abs(correction):.4f} for the tip "
+                f"({self.thread_form.value}); gauge the first one and trim on the wear offset",)
 
     def target_outline(self, context: BlockContext) -> tuple[Segment, ...]:
         """The crest and the root of the thread along its length."""
         sign = 1 if self.side is TurningSide.OUTSIDE else -1
         ends = (self.start_z_mm, self.end_z_mm)
         crest = [Point(self.crest_at(z), z) for z in ends]
-        root = [Point(self.crest_at(z) - sign * self.depth(), z) for z in ends]
+        root = [Point(self.crest_at(z) - sign * self.depth(context.tool), z) for z in ends]
         return (LineSegment(*crest), LineSegment(*root))
 
     def _between(self, z_low: float, z_high: float, near: Callable[[float], float], far: Callable[[float], float]) -> Region:
@@ -269,7 +305,7 @@ class ThreadingBlock(Block):
             return BlockResult(nothing.operations, nothing.removed, (f"threading: {text}",))
 
         sign = 1 if self.side is TurningSide.OUTSIDE else -1
-        depth = self.depth()
+        depth = self.depth(context.tool)
         z_start = self.start_z_mm
         z_end = self.end_z_mm
         crest_at = self.crest_at
@@ -366,4 +402,4 @@ class ThreadingBlock(Block):
                 leave = [Rapid(up), Rapid(Point(safe_radius, z_front)), Rapid(safe_point)]
         operations = (header, *approach, operation, *leave, footer)
         removed = residual.intersection(margin_band)
-        return BlockResult(operations, removed, (*crest_warnings, *reach_notes, *notes, *self._designation_messages(context.tool.shape)))
+        return BlockResult(operations, removed, (*crest_warnings, *reach_notes, *notes, *self._depth_messages(context.tool), *self._designation_messages(context.tool.shape)))

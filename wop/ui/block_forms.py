@@ -152,7 +152,7 @@ class FieldSpec:
     preview: str = ""  # CHOICE of styles: the block type whose style pictures are shown when an entry of the list is hovered
     minimum: float | None = None  # a number outside these limits is refused
     maximum: float | None = None
-    suggestions: tuple[tuple[str, tuple[str, ...]], ...] = ()  # TEXT: a menu of values by group (heading, values); typing stays free
+    suggestions: tuple = ()  # TEXT: a menu: entries are values or (heading, entries) submenus; typing stays free
     computed: bool = False  # worked out from other fields (a property of the object); typing it sets them (`with_<name>`)
 
     def display_label(self, x_mode: XInputMode) -> str:

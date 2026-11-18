@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, replace
+from enum import Enum
 
 from ..constants import (
     THREAD_TOOL_CUTTING_HEIGHT_MM,
@@ -19,6 +20,14 @@ from .base import TOOL_TYPES, ToolType
 from .hand import ToolHand
 
 
+class ThreadProfile(Enum):
+    """A full-profile insert is ground for one pitch and form: the thread depth is the standard one. A partial-profile insert
+    cuts a range of pitches with its own tip radius: the threading block corrects the depth for it (`thread_form.tip_correction`)."""
+
+    FULL = "Full profile"
+    PARTIAL = "Partial profile"
+
+
 @dataclass(frozen=True)
 class ThreadDefinition:
     number: int = 0  # the tool number (set by the model when the form is shown)
@@ -28,6 +37,7 @@ class ThreadDefinition:
     inside: bool = False
     included_angle_deg: float = THREAD_TOOL_INCLUDED_ANGLE_DEG
     lead_angle_deg: float = THREAD_TOOL_INCLUDED_ANGLE_DEG / 2  # the leading flank from the radial direction; follows the included angle while the tool is symmetric
+    profile: ThreadProfile = ThreadProfile.FULL  # a tool saved before this field existed is a full-profile one: its depths stay as they were
     nose_radius_mm: float = THREAD_TOOL_NOSE_RADIUS_MM
     flat_mm: float = THREAD_TOOL_FLAT_MM
     cutting_height_mm: float = THREAD_TOOL_CUTTING_HEIGHT_MM
@@ -36,7 +46,7 @@ class ThreadDefinition:
     length_mm: float = THREAD_TOOL_LENGTH_MM
 
     def form_fields(self) -> tuple[str, ...]:
-        return ("number", "name", "material", "hand", "inside", "included_angle_deg", "lead_angle_deg", "nose_radius_mm", "flat_mm",
+        return ("number", "name", "material", "hand", "inside", "included_angle_deg", "lead_angle_deg", "profile", "nose_radius_mm", "flat_mm",
                 "cutting_height_mm", "tip_distance_mm", "width_mm", "length_mm")
 
     def form_labels(self) -> dict[str, str]:
@@ -44,7 +54,8 @@ class ThreadDefinition:
         return {
             "included_angle_deg": "Included angle (between the flanks)",
             "lead_angle_deg": "Lead angle (leading flank to X)",
-            "nose_radius_mm": "Tip radius",
+            "profile": "Insert profile",
+            "nose_radius_mm": "Tip radius (a partial profile cuts the thread depth for it)",
             "flat_mm": "Tip flat (before rounding)",
             "cutting_height_mm": "Cutting height (point to body)",
             "tip_distance_mm": "Point to cutting side face",

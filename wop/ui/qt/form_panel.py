@@ -447,10 +447,15 @@ class FormPanel(QWidget):
     def _add_suggestions(self, spec: FieldSpec, line: QLineEdit) -> None:
         """A drop-down arrow inside the text field: a menu with a submenu per group; a picked value is put in the field and taken."""
         menu = QMenu(line)
-        for heading, values in spec.suggestions:
-            group = menu.addMenu(heading)
-            for text in values:
-                group.addAction(text).triggered.connect(lambda _checked=False, s=spec, w=line, t=text: self._suggested(s, w, t))
+
+        def fill(target: QMenu, entries) -> None:  # an entry is a value, or (heading, entries) for a submenu
+            for entry in entries:
+                if isinstance(entry, tuple):
+                    fill(target.addMenu(entry[0]), entry[1])
+                else:
+                    target.addAction(entry).triggered.connect(lambda _checked=False, s=spec, w=line, t=entry: self._suggested(s, w, t))
+
+        fill(menu, spec.suggestions)
         arrow = line.addAction(line.style().standardIcon(QStyle.SP_ArrowDown), QLineEdit.TrailingPosition)
         arrow.setToolTip("Pick from the list")
         arrow.triggered.connect(lambda: menu.exec(line.mapToGlobal(QPoint(0, line.height()))))

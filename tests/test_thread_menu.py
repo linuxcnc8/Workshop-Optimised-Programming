@@ -24,14 +24,32 @@ if HAVE_REAL_QT:
     APP = QApplication.instance() or QApplication([])
 
 
+def flat(entries) -> list[str]:
+    """The designations of a menu, its submenus opened."""
+    found: list[str] = []
+    for entry in entries:
+        found += flat(entry[1]) if isinstance(entry, tuple) else [entry]
+    return found
+
+
 class StandardDesignationTests(unittest.TestCase):
     def test_every_entry_of_the_menu_is_read_as_written(self):
         for outside in (True, False):
             for heading, values in standard_designations(outside):
-                self.assertTrue(values, heading)
-                for text in values:
+                self.assertTrue(flat(values), heading)
+                for text in flat(values):
                     with self.subTest(text=text):
                         self.assertEqual(parse_designation(text).designation, text)
+
+    def test_the_metric_fine_threads_are_the_turning_panels_iso_261_table_by_diameter(self):
+        fine = dict(next(values for heading, values in standard_designations(True) if heading.startswith("Metric fine")))
+        self.assertEqual(len(fine), 50)
+        self.assertEqual(sum(len(values) for values in fine.values()), 127)
+        self.assertEqual(fine["M24"], ("M24x2", "M24x1.5", "M24x1"))
+        self.assertEqual(fine["M100"], ("M100x4", "M100x3", "M100x2"))
+        coarse = next(values for heading, values in standard_designations(True) if heading.startswith("Metric coarse"))
+        self.assertIn("M100x6", coarse)
+        self.assertIn("M4.5x0.75", coarse)
 
     def test_bspt_follows_the_side_and_npt_is_on_both(self):
         def pipe(outside: bool) -> tuple[str, ...]:
@@ -69,6 +87,9 @@ class QtMenuTests(unittest.TestCase):
         self.assertIsInstance(line, QLineEdit)
         self.assertTrue(line.actions(), "the drop-down arrow")
         menu = line.findChild(QMenu)
+        fine = next(action.menu() for action in menu.actions() if action.text().startswith("Metric fine"))
+        m24 = next(action.menu() for action in fine.actions() if action.text() == "M24")
+        self.assertEqual([a.text() for a in m24.actions()], ["M24x2", "M24x1.5", "M24x1"])
         npt = next(action.menu() for action in menu.actions() if action.text().startswith("NPT"))
         edited = []
         panel.edited.connect(lambda spec, value: edited.append((spec.path, value)))

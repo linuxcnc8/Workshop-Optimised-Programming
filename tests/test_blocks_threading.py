@@ -75,8 +75,8 @@ class ThreadingTests(unittest.TestCase):
                 block(**overrides)
 
     def test_the_iso_depth_comes_from_the_pitch(self):
-        self.assertAlmostEqual(block().depth(), 0.6134 * 1.5)
-        self.assertAlmostEqual(block(side=TurningSide.INSIDE).depth(), 0.5413 * 1.5)
+        self.assertAlmostEqual(block().depth(), 0.61343466 * 1.5)
+        self.assertAlmostEqual(block(side=TurningSide.INSIDE).depth(), 0.54126588 * 1.5)
         self.assertEqual(block(thread_depth_mm=1).depth(), 1)
 
     def test_the_example_plans_without_findings_and_writes_a_cycle(self):
@@ -147,8 +147,8 @@ class ThreadingFormTests(unittest.TestCase):
     def test_the_order_of_the_form(self):
         names = list(dict.fromkeys(spec.path[0] for spec in self.specs()))
         self.assertEqual(names, [
-            "name", "side", "designation", "tool_number", "spindle", "crest_radius_mm", "pitch_mm", "start_z_mm", "end_z_mm",
-            "taper_per_100_mm", "end_crest_radius_mm", "thread_depth_mm", "first_cut_depth_mm", "degression", "compound_angle_deg", "spring_passes",
+            "name", "side", "designation", "thread_form", "tool_number", "spindle", "crest_radius_mm", "pitch_mm", "start_z_mm", "end_z_mm",
+            "taper_per_100_mm", "end_crest_radius_mm", "thread_depth_mm", "tip_correction", "first_cut_depth_mm", "degression", "compound_angle_deg", "spring_passes",
             "taper", "taper_distance_mm", "coolant",
         ])
 

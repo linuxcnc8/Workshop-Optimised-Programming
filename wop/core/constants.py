@@ -189,8 +189,9 @@ GROOVE_TOOL_HOLDER_LENGTH_MM = 20
 
 # --- threading (ISO metric 60 degree thread) ---
 # ISO 68-1 basic profile of the metric 60 degree thread: depth = factor * pitch (outside 17/24 of the sharp V, inside 5/8). Fixed: they follow from the geometry.
-THREAD_DEPTH_FACTOR_EXTERNAL = 0.6134
-THREAD_DEPTH_FACTOR_INTERNAL = 0.5413
+THREAD_SHARP_HEIGHT_60 = 1 / (2 * math.tan(math.radians(30)))  # H of a 60 degree thread, a multiple of the pitch (0.866025)
+THREAD_DEPTH_FACTOR_EXTERNAL = 17 / 24 * THREAD_SHARP_HEIGHT_60  # ISO 68-1 h3 = 17H/24 = 0.613434 P (exact, as the Turning panel)
+THREAD_DEPTH_FACTOR_INTERNAL = 5 / 8 * THREAD_SHARP_HEIGHT_60  # ISO 68-1 H1 = 5H/8 = 0.541266 P
 THREAD_FLANK_HALF_ANGLE_DEG = 30
 THREAD_COMPOUND_ANGLE_LIMIT_DEG = 90  # the angle must be below this
 THREAD_CREST_TOLERANCE_MM = 0.01  # material this far above the crest means "turn it first"
@@ -204,13 +205,20 @@ THREAD_FLANK_MISMATCH_DEG = 1  # the block tells when the tool flank and the thr
 NUMBERED_SCREW_BASE_IN = 0.06  # machine screw size N: diameter = base + step * N inches
 NUMBERED_SCREW_STEP_IN = 0.013
 THREAD_SIZE_MATCH_TOLERANCE_IN = 0.0005  # a size matches a table entry within this
-# ISO 261 coarse pitches (major diameter mm, pitch mm)
-METRIC_COARSE_PITCHES = (
-    (1, 0.25), (1.2, 0.25), (1.4, 0.3), (1.6, 0.35), (1.8, 0.35), (2, 0.4), (2.5, 0.45), (3, 0.5), (3.5, 0.6),
-    (4, 0.7), (5, 0.8), (6, 1), (7, 1), (8, 1.25), (10, 1.5), (12, 1.75), (14, 2), (16, 2), (18, 2.5), (20, 2.5),
-    (22, 2.5), (24, 3), (27, 3), (30, 3.5), (33, 3.5), (36, 4), (39, 4), (42, 4.5), (45, 4.5), (48, 5), (52, 5),
-    (56, 5.5), (60, 5.5), (64, 6),
+METRIC_THREADS = (  # ISO 261 / ISO 262: (major diameter mm, coarse pitch, (fine pitches ...)), from the big-blue Turning panel's thread_data.py
+    (1, 0.25, (0.2,)), (1.1, 0.25, (0.2,)), (1.2, 0.25, (0.2,)), (1.4, 0.3, (0.2,)), (1.6, 0.35, (0.2,)),
+    (1.8, 0.35, (0.2,)), (2, 0.4, (0.25,)), (2.2, 0.45, (0.25,)), (2.5, 0.45, (0.35,)), (3, 0.5, (0.35,)),
+    (3.5, 0.6, (0.35,)), (4, 0.7, (0.5,)), (4.5, 0.75, (0.5,)), (5, 0.8, (0.5,)), (6, 1, (0.75, 0.5)),
+    (7, 1, (0.75,)), (8, 1.25, (1, 0.75, 0.5)), (9, 1.25, (1, 0.75)), (10, 1.5, (1.25, 1, 0.75, 0.5)),
+    (11, 1.5, (1, 0.75)), (12, 1.75, (1.5, 1.25, 1)), (14, 2, (1.5, 1.25, 1)), (15, 2, (1.5, 1)), (16, 2, (1.5, 1)),
+    (17, 2, (1.5, 1)), (18, 2.5, (2, 1.5, 1)), (20, 2.5, (2, 1.5, 1)), (22, 2.5, (2, 1.5, 1)), (24, 3, (2, 1.5, 1)),
+    (25, 3, (2, 1.5, 1)), (27, 3, (2, 1.5, 1)), (30, 3.5, (3, 2, 1.5, 1)), (33, 3.5, (3, 2, 1.5)),
+    (36, 4, (3, 2, 1.5)), (39, 4, (3, 2, 1.5)), (42, 4.5, (4, 3, 2, 1.5)), (45, 4.5, (4, 3, 2, 1.5)),
+    (48, 5, (4, 3, 2, 1.5)), (52, 5, (4, 3, 2, 1.5)), (56, 5.5, (4, 3, 2, 1.5)), (60, 5.5, (4, 3, 2, 1.5)),
+    (64, 6, (4, 3, 2, 1.5)), (68, 6, (4, 3, 2, 1.5)), (72, 6, (4, 3, 2, 1.5)), (76, 6, (4, 3, 2, 1.5)),
+    (80, 6, (4, 3, 2, 1.5)), (85, 6, (4, 3, 2)), (90, 6, (4, 3, 2)), (95, 6, (4, 3, 2)), (100, 6, (4, 3, 2)),
 )
+METRIC_COARSE_PITCHES = tuple((d, coarse) for d, coarse, _fine in METRIC_THREADS)  # (major diameter mm, pitch mm)
 # Unified threads (size, threads per inch)
 UNC_THREADS = (
     ("#1", 64), ("#2", 56), ("#3", 48), ("#4", 40), ("#5", 40), ("#6", 32), ("#8", 32), ("#10", 24), ("#12", 24),
@@ -223,15 +231,21 @@ UNF_THREADS = (
     ("3/4", 16), ("7/8", 14), ("1", 12), ("1 1/8", 12), ("1 1/4", 12), ("1 3/8", 12), ("1 1/2", 12),
 )
 # The list of standard threads in the threading form (a menu; the field still takes any designation)
-METRIC_FINE_THREADS = (  # GUESS: common ISO 261 fine pitches (major diameter mm, pitch mm), not the whole table
-    (6, 0.75), (8, 1), (10, 1), (10, 1.25), (12, 1.25), (12, 1.5), (14, 1.5), (16, 1.5), (18, 1.5), (20, 1.5), (22, 1.5),
-    (24, 1.5), (24, 2), (27, 2), (30, 1.5), (30, 2), (33, 2), (36, 1.5), (36, 2), (36, 3), (39, 3), (42, 2), (42, 3),
-    (45, 1.5), (45, 3), (48, 2), (48, 3), (52, 3), (56, 2), (56, 4), (60, 4), (64, 4),
-)
 TRAPEZOIDAL_THREADS = (  # GUESS: ISO 2904 preferred pitch per diameter (major diameter mm, pitch mm)
     (8, 1.5), (10, 2), (12, 3), (14, 3), (16, 4), (18, 4), (20, 4), (22, 5), (24, 5), (26, 5), (28, 5), (30, 6), (32, 6),
     (34, 6), (36, 6), (38, 7), (40, 7), (42, 7), (44, 7), (46, 8), (48, 8), (50, 8), (52, 8), (55, 9), (60, 9), (65, 10),
     (70, 10), (75, 10), (80, 10),
+)
+# Thread forms: the depth of a full-profile insert and the root radius it has; a partial-profile insert with tip radius r
+# goes deeper by (root radius - r) x (1 / sin(angle / 2) - 1). The rows and fractions are those of the big-blue Turning
+# panel's thread_data.py (checked there on the machine against gauges). (form name, included angle in degrees, depth
+# outside, depth inside, root radius outside, root radius inside), the last four as multiples of the sharp-V height H.
+THREAD_SETBACK_55 = 1 / math.sin(math.radians(27.5)) - 1  # how far a tip radius sits back from the apex of a 55 degree V, per mm
+THREAD_FORMS = (
+    ("ISO / Unified 60 deg", 60, 17 / 24, 5 / 8, 1 / 6, 1 / 8),  # ISO 68-1 / ASME B1.1
+    ("Whitworth / BSP 55 deg", 55, 2 / 3, 2 / 3, 1 / (6 * THREAD_SETBACK_55), 1 / (6 * THREAD_SETBACK_55)),  # BS 84: H/6 off each end
+    # NPT (ASME B1.20.1) is truncated flat: h = 0.8 P; the 0.033 P truncation is the setback of a "radius" with the same effect
+    ("NPT 60 deg (flat root)", 60, 0.8 / THREAD_SHARP_HEIGHT_60, 0.8 / THREAD_SHARP_HEIGHT_60, 0.033 / THREAD_SHARP_HEIGHT_60, 0.033 / THREAD_SHARP_HEIGHT_60),
 )
 THREAD_TOOL_TIP_HEIGHT_MM = 3  # the 60 degree point of the preset tool, tip to the holder
 THREAD_TOOL_HOLDER_LENGTH_MM = 25
