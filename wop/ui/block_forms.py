@@ -153,6 +153,7 @@ class FieldSpec:
     minimum: float | None = None  # a number outside these limits is refused
     maximum: float | None = None
     suggestions: tuple[tuple[str, tuple[str, ...]], ...] = ()  # TEXT: a menu of values by group (heading, values); typing stays free
+    computed: bool = False  # worked out from other fields (a property of the object); typing it sets them (`with_<name>`)
 
     def display_label(self, x_mode: XInputMode) -> str:
         if self.is_radius and x_mode is XInputMode.DIAMETER:
@@ -348,6 +349,9 @@ def form_for(obj: Any, context: FormContext = FormContext()) -> list[FieldSpec]:
             dataclasses.replace(spec, suggestions=offered[spec.path[0]]) if len(spec.path) == 1 and spec.path[0] in offered and spec.kind is FieldKind.TEXT else spec
             for spec in specs
         ]
+    computed = getattr(obj, "form_computed_fields", None)  # fields worked out from others that can be typed too: name -> label
+    if callable(computed):
+        specs += [dataclasses.replace(_float_spec(name, False, (name,), label, ""), computed=True) for name, label in computed().items()]
     specs = _with_function_fields(obj, specs, context)
     shown = getattr(obj, "form_fields", None)  # an object may show only the fields that matter for its current values
     if callable(shown):
@@ -423,6 +427,8 @@ def set_value(obj: Any, path: tuple[str, ...], value: Any) -> Any:
     head, rest = path[0], path[1:]
     if head.startswith(VARIABLE_PREFIX):
         return obj.with_variable(head[len(VARIABLE_PREFIX):], value)
+    if not rest and head not in {f.name for f in dataclasses.fields(obj)}:  # a computed field (`form_computed_fields`)
+        return getattr(obj, f"with_{head}")(value)
     new = value if not rest else set_value(getattr(obj, head), rest, value)
     return dataclasses.replace(obj, **{head: new})
 

@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import dataclasses
+
 from PySide6.QtCore import QTimer
 
 from ....core.program_model.touched import SETUP_OWNER
@@ -128,9 +130,13 @@ class FormMixin:
                 QTimer.singleShot(0, self._show_form)  # a renamed item has a new title
             else:
                 self.model.replace_block(self.model.selected, new)
-                if self.model.blocks[self.model.selected] != new:  # other fields followed (designation, tool defaults)
+                if self.model.blocks[self.model.selected] != new or callable(getattr(new, "form_computed_fields", None)):
+                    # other fields followed (designation, tool defaults), or a computed field (X2) and its sources follow each other
                     QTimer.singleShot(0, self._show_form)  # show them now, after this handler has ended
-            if owner is not None:
+            if owner is not None and spec.computed:  # typing X2 touches the fields it set (the taper), not a stored X2
+                for name in (f.name for f in dataclasses.fields(obj) if getattr(obj, f.name) != getattr(new, f.name)):
+                    self.model.set_touched(owner, (name,), touched)
+            elif owner is not None:
                 self.model.set_touched(owner, spec.path, touched)
             self._update_setup_info()
         except ValueError as error:

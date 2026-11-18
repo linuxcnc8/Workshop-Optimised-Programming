@@ -148,7 +148,7 @@ class ThreadingFormTests(unittest.TestCase):
         names = list(dict.fromkeys(spec.path[0] for spec in self.specs()))
         self.assertEqual(names, [
             "name", "side", "designation", "tool_number", "spindle", "crest_radius_mm", "pitch_mm", "start_z_mm", "end_z_mm",
-            "taper_per_100_mm", "thread_depth_mm", "first_cut_depth_mm", "degression", "compound_angle_deg", "spring_passes",
+            "taper_per_100_mm", "end_crest_radius_mm", "thread_depth_mm", "first_cut_depth_mm", "degression", "compound_angle_deg", "spring_passes",
             "taper", "taper_distance_mm", "coolant",
         ])
 

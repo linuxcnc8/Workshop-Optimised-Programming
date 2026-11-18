@@ -361,7 +361,7 @@ class FormPanel(QWidget):
     def _decorate(self, spec: FieldSpec, widget: QWidget) -> None:
         """Remember the widget of a field; dim it when untouched and give it the reset menu."""
         self._widgets[spec.path] = widget
-        if self._is_touched is None:
+        if self._is_touched is None or spec.computed:  # a computed field has no default of its own: never dimmed, no reset
             return
         widget.setContextMenuPolicy(Qt.CustomContextMenu)
         widget.customContextMenuRequested.connect(lambda point, s=spec, w=widget: self._menu(s, w, point))

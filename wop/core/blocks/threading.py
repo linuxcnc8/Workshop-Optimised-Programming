@@ -87,7 +87,7 @@ class ThreadingBlock(Block):
         """The order of the form (the free comment is not shown)."""
         return (
             "name", "side", "designation", "tool_number", "spindle", "crest_radius_mm", "pitch_mm", "start_z_mm", "end_z_mm",
-            "taper_per_100_mm", "thread_depth_mm", "first_cut_depth_mm", "degression", "compound_angle_deg", "spring_passes",
+            "taper_per_100_mm", "end_crest_radius_mm", "thread_depth_mm", "first_cut_depth_mm", "degression", "compound_angle_deg", "spring_passes",
             "taper", "taper_distance_mm", "coolant",
         )
 
@@ -169,6 +169,23 @@ class ThreadingBlock(Block):
 
     def crest_at(self, z: float) -> float:
         return self.crest_radius_mm + self.crest_slope * (self.start_z_mm - z)
+
+    @property
+    def end_crest_radius_mm(self) -> float:
+        """X2: the crest radius at the end Z, worked out from the crest, the taper and the length (not stored; the taper is)."""
+        return self.crest_at(self.end_z_mm)
+
+    def with_end_crest_radius_mm(self, radius: float) -> "ThreadingBlock":
+        """The block with the taper that gives this crest radius at the end Z (typing X2 sets the taper per 100 mm)."""
+        length = self.start_z_mm - self.end_z_mm
+        if abs(length) <= GEOMETRY_TOLERANCE_MM:
+            raise BlockError("the thread has no length: set Start Z and End Z before X2")
+        taper = 2 * (radius - self.crest_radius_mm) / length * TAPER_PER_100_MM
+        return replace(self, taper_per_100_mm=taper)
+
+    def form_computed_fields(self) -> dict[str, str]:
+        """Fields worked out from others that can be typed in as well (see with_end_crest_radius_mm)."""
+        return {"end_crest_radius_mm": "X2 crest radius at End Z"}
 
     def with_derived_fields(self, previous: Block | None) -> "ThreadingBlock":
         """A designation fills pitch, crest radius, depth and compound angle when it or the side changes; a pipe thread also
