@@ -159,6 +159,10 @@ class Block:
         """
         return ()
 
+    def limit_lines(self, context: BlockContext) -> tuple[Segment, ...]:
+        """The toolpath limits of this block as lines in the picture (B32; empty: none). Drawn for the block chosen in the flow list."""
+        return ()
+
 
 class BlockRegistry:
     """Known block types by name."""

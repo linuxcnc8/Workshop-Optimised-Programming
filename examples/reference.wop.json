@@ -413,7 +413,8 @@
         "finish_feed_mm_per_rev": 0.1,
         "finish_spindle_value": 180,
         "overtravel_mm": 0,
-        "face_stock_mm": 0
+        "face_stock_mm": 0,
+        "x_limit_radius_mm": null
       }
     },
     {
@@ -554,7 +555,10 @@
         "plunge_feed_mm_per_rev": null,
         "plunge_depth_of_cut_mm": null,
         "min_free_angle_deg": 5,
-        "style": "standard"
+        "style": "standard",
+        "z_plus_limit_mm": null,
+        "z_minus_limit_mm": null,
+        "x_limit_radius_mm": null
       }
     }
   ]

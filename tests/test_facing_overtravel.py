@@ -146,7 +146,7 @@ class FacingFormTests(unittest.TestCase):
                 order.append(spec.path[0])
         self.assertEqual(order, ["name", "direction", "tool_number", "spindle", "target_z_mm", "face_stock_mm", "feed_mm_per_rev",
                                  "depth_of_cut_mm", "overtravel_mm", "finish_allowance_mm", "finish_pass",
-                                 "finish_feed_mm_per_rev", "finish_spindle_value", "coolant"])
+                                 "finish_feed_mm_per_rev", "finish_spindle_value", "x_limit_radius_mm", "coolant"])
         feed = next(s for s in specs if s.path[0] == "finish_feed_mm_per_rev")
         self.assertTrue(feed.same_line)
         self.assertFalse(feed.enabled)  # the checkbox is not ticked

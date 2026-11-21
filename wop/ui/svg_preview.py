@@ -200,6 +200,7 @@ def render_svg(
     order_colors: tuple[str, str] | None = None,
     rapids: bool = True,
     line_scale: float = 1.0,
+    limits: tuple[Segment, ...] = (),
 ) -> str:
     """The picture as SVG text.
 
@@ -215,6 +216,7 @@ def render_svg(
     workholding: the placed chuck body and jaws, drawn behind the material (None: nothing, the flat clamping plane).
     outline: the finished shape of the block chosen in the flow list, dashed in its own colour (above the material, below
     the paths and the tool).
+    limits: the toolpath limits of the chosen block (B32), thin dashed lines in the colour of the outline.
     fit: show only the part of the picture around these points (a zoom; what lies outside is cut off by the picture edge).
     order_colors: colour the cutting moves by the order they are made in, from the first colour to the second (the picture of a style).
     rapids: False leaves the rapid moves out.
@@ -225,6 +227,12 @@ def render_svg(
     shown = plan.blocks[: last + 1]
     material = step.material if step else shown[-1].material_after if shown else plan.stock
     elements = _ground_elements(plan, shown, material, view, colors, workholding, outline)
+    for limit in limits:  # the toolpath limits of the chosen block (B32): thin dashed lines in the colour of its outline
+        (x1, y1), (x2, y2) = view.px(limit.start), view.px(limit.end)
+        elements.append(
+            f'<line class="toolpath-limit" x1="{_fmt(x1)}" y1="{_fmt(y1)}" x2="{_fmt(x2)}" y2="{_fmt(y2)}" stroke="{colors.finished_outline}" '
+            f'stroke-width="{view.width(ui.LIMIT_LINE_WIDTH_PX)}" stroke-dasharray="{view.dash(ui.LIMIT_LINE_DASH)}"/>'
+        )
     elements += _path_elements(shown, view, colors, step, order_colors, rapids)
     if step:
         elements.append(_tool_elements(step, view, colors))

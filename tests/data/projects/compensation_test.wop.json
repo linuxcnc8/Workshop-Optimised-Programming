@@ -595,7 +595,8 @@
         "finish_feed_mm_per_rev": null,
         "finish_spindle_value": null,
         "overtravel_mm": 1.5999999999999999,
-        "face_stock_mm": 0
+        "face_stock_mm": 0,
+        "x_limit_radius_mm": null
       }
     },
     {
@@ -625,7 +626,10 @@
         "plunge_feed_mm_per_rev": 0.1,
         "plunge_depth_of_cut_mm": 0.5,
         "min_free_angle_deg": 5,
-        "style": "standard"
+        "style": "standard",
+        "z_plus_limit_mm": null,
+        "z_minus_limit_mm": null,
+        "x_limit_radius_mm": null
       }
     },
     {
@@ -655,7 +659,10 @@
         "plunge_feed_mm_per_rev": 0.1,
         "plunge_depth_of_cut_mm": 0.5,
         "min_free_angle_deg": 5,
-        "style": "standard"
+        "style": "standard",
+        "z_plus_limit_mm": null,
+        "z_minus_limit_mm": null,
+        "x_limit_radius_mm": null
       }
     }
   ],

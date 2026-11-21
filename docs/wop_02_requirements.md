@@ -47,6 +47,9 @@ Rules for this list:
 | B25 | After a change only the changed block and those after it are planned again | The result equals a plan from scratch (`tests/test_block_cache.py`). | Done |
 | B28 | Far side: a tool that stands the other way works on the far side of the axis | Same material, mirrored moves, same findings (`tests/test_far_side.py`). | Done, not run on a machine |
 | B29 | Spindle direction in every block (clockwise or counter-clockwise) | `tests/test_spindle_direction.py` | Done, not run on a machine |
+| B30 | Toolpath limits of a turning contour block (Z+, Z-, X on the part side), the contour unchanged | A Z- limit cuts only in front of it and retracts at 45 degrees; a Z+ limit only behind it; the X limit finishes straight over a neck (`tests/test_toolpath_limits.py`). | Done, not tried by the user |
+| B31 | X limit of a facing block: the facing stops at that diameter | Both directions, with and without finishing, cut nothing inside the limit (`tests/test_toolpath_limits.py`). | Done, not tried by the user |
+| B32 | The toolpath limits of the chosen block are drawn as dashed lines | The picture has the limit lines only when they are given (`tests/test_toolpath_limits.py`). | Done, not tried by the user |
 | B4 | A program is saved as a file of blocks | Save, load, save: the two files are byte-identical. | Done |
 | B9 | A single block can be run on its own | The moves of block 3 alone equal those in the full program. | Done |
 | B15 | Export selected (checkbox per block) | Only block 3 ticked gives its moves alone; the header names the blocks. | Done |

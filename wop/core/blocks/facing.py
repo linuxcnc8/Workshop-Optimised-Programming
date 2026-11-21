@@ -49,23 +49,36 @@ class FacingBlock(Block):
     finish_spindle_value: float | None = None  # rpm or m/min as for the spindle; None: as for roughing
     overtravel_mm: float = 0  # how far the tool runs past the centre (or the bore of a tube); preset: twice the nose radius
     face_stock_mm: float = 0  # material in front of the face that this block takes off (not drawn in the raw part)
+    x_limit_radius_mm: float | None = None  # toolpath limit (B31): the facing stops at this radius, no overtravel; None: to the centre (or the bore)
     tool_default_fields = ("overtravel_mm",)
 
     def form_fields(self) -> tuple[str, ...]:
         """The order of the form (the fields the user sees; the free comment is not one of them)."""
         return (
             "name", "direction", "tool_number", "spindle", "target_z_mm", "face_stock_mm", "feed_mm_per_rev", "depth_of_cut_mm",
-            "overtravel_mm", "finish_allowance_mm", "finish_pass", "finish_feed_mm_per_rev", "finish_spindle_value", "coolant",
+            "overtravel_mm", "finish_allowance_mm", "finish_pass", "finish_feed_mm_per_rev", "finish_spindle_value", "x_limit_radius_mm", "coolant",
         )
 
+    def form_headings(self) -> dict[str, str]:
+        return {"x_limit_radius_mm": "Toolpath limit (empty: no limit)"}
+
+    def _inner_x(self, bounds) -> float:
+        """Where the passes end towards the centre: the X limit, or past the centre (or the bore) by the overtravel."""
+        if self.x_limit_radius_mm is not None:
+            return max(self.x_limit_radius_mm, bounds.min_x)
+        return bounds.min_x - self.overtravel_mm
+
     def form_labels(self) -> dict[str, str]:
-        return {"face_stock_mm": "Stock on the face (in front of it)"}
+        return {"face_stock_mm": "Stock on the face (in front of it)", "x_limit_radius_mm": "X- limit, X radius (facing stops there)"}
 
     def form_same_line(self) -> frozenset[str]:
         return frozenset({"finish_feed_mm_per_rev", "finish_spindle_value"})  # next to the "Finishing" checkbox
 
     def form_disabled(self) -> frozenset[str]:
-        return frozenset() if self.finish_pass else frozenset({"finish_feed_mm_per_rev", "finish_spindle_value"})
+        off = set() if self.finish_pass else {"finish_feed_mm_per_rev", "finish_spindle_value"}
+        if self.x_limit_radius_mm is not None:
+            off.add("overtravel_mm")  # the facing stops at the limit
+        return frozenset(off)
 
     def with_tool_defaults(self, tool) -> "FacingBlock":
         return replace(self, overtravel_mm=FACING_OVERTRAVEL_NOSE_FACTOR * tool.nose_radius_mm)
@@ -85,6 +98,8 @@ class FacingBlock(Block):
             raise BlockError("the overtravel must not be negative")
         if self.face_stock_mm < 0:
             raise BlockError("the stock on the face must not be negative")
+        if self.x_limit_radius_mm is not None and self.x_limit_radius_mm < 0:
+            raise BlockError("the X limit must not be negative")
         if self.finish_allowance_mm < 0:
             raise BlockError("finishing allowance must not be negative")
         if self.finish_feed_mm_per_rev is not None and self.finish_feed_mm_per_rev <= 0:
@@ -98,6 +113,13 @@ class FacingBlock(Block):
             return ()
         return (LineSegment(Point(bounds.min_x, self.target_z_mm), Point(bounds.max_x, self.target_z_mm)),)
 
+    def limit_lines(self, context: BlockContext) -> tuple[Segment, ...]:
+        bounds = context.residual.bounds
+        if bounds is None or self.x_limit_radius_mm is None:
+            return ()
+        r = self.x_limit_radius_mm
+        return (LineSegment(Point(r, bounds.max_z + self.face_stock_mm + context.safety.clearance_mm), Point(r, self.target_z_mm - context.safety.clearance_mm)),)
+
     def _as_contour(self, context: BlockContext) -> BlockResult:
         """The block planned as a contour block across X on its face line (see the module text). The moves keep the name and the type of
         this block."""
@@ -106,14 +128,19 @@ class FacingBlock(Block):
         from .turning_contour import ContourTurningBlock  # late: the contour block is a neighbour
 
         bounds = context.residual.bounds
-        face = LineSegment(Point(bounds.min_x - self.overtravel_mm, self.target_z_mm), Point(bounds.max_x, self.target_z_mm))
-        contour = Contour(contour_id=f"{self.block_id}:face", name=self.name, segments=(face,))
+        inner = self._inner_x(bounds)
+        face = LineSegment(Point(inner, self.target_z_mm), Point(bounds.max_x, self.target_z_mm))
+        segments: tuple[Segment, ...] = (face,)
+        if self.x_limit_radius_mm is not None and inner > bounds.min_x + GEOMETRY_TOLERANCE_MM:  # the material goes on inside the limit: a wall there
+            segments = (LineSegment(Point(inner, bounds.max_z), Point(inner, self.target_z_mm)), face)
+        contour = Contour(contour_id=f"{self.block_id}:face", name=self.name, segments=segments)
         twin = ContourTurningBlock(
             block_id=self.block_id, tool_number=self.tool_number, spindle=self.spindle, coolant=self.coolant, name=self.name,
             contour_id=contour.contour_id, side=TurningSide.OUTSIDE, feed_mm_per_rev=self.feed_mm_per_rev, depth_of_cut_mm=self.depth_of_cut_mm,
             pass_direction=PassDirection.ALONG_X, finish_allowance_mm=self.finish_allowance_mm, finish_pass=False,
         )
-        result = twin.generate(replace(context, contours=(*context.contours, contour)), run_on=self.overtravel_mm)
+        run_on = 0.0 if self.x_limit_radius_mm is not None else self.overtravel_mm  # at a limit the material goes on: no line runs past it
+        result = twin.generate(replace(context, contours=(*context.contours, contour)), run_on=run_on)
         operations = [replace(operation, type_name=self.type_name) if isinstance(operation, BlockBegin) else operation for operation in result.operations]
         removed = result.removed
         if self.finish_pass:
@@ -121,7 +148,7 @@ class FacingBlock(Block):
             if end > 0 and isinstance(operations[end - 1], Rapid):
                 end -= 1
             operations[end:] = [*self._finishing(context, context.residual.difference(result.removed), operations[:end]), operations[-1]]
-            removed = context.residual.intersection(Region.rectangle(bounds.min_x, self.target_z_mm, bounds.max_x, bounds.max_z))
+            removed = context.residual.intersection(Region.rectangle(max(self._inner_x(bounds), bounds.min_x), self.target_z_mm, bounds.max_x, bounds.max_z))
         return replace(result, operations=tuple(operations), removed=removed)
 
     def _finishing(self, context: BlockContext, after_roughing: Region, operations: list) -> list:
@@ -130,7 +157,7 @@ class FacingBlock(Block):
         here = next((operation.end for operation in reversed(operations) if getattr(operation, "end", None) is not None), None)
         feed = self.finish_feed_mm_per_rev or self.feed_mm_per_rev
         fast = finishing_spindle(self.spindle, self.finish_spindle_value)
-        start, end = bounds.max_x + context.safety.clearance_mm, bounds.min_x - self.overtravel_mm
+        start, end = bounds.max_x + context.safety.clearance_mm, self._inner_x(bounds)
         return self._passes(context, after_roughing, here, [(self.target_z_mm, feed, fast)], start, end)
 
     def _passes(self, context: BlockContext, standing: Region, here: Point | None, passes: list, start_x: float, end_x: float) -> list:
@@ -181,11 +208,11 @@ class FacingBlock(Block):
             fast = finishing_spindle(self.spindle, self.finish_spindle_value)
             passes.append((self.target_z_mm, self.finish_feed_mm_per_rev or self.feed_mm_per_rev, fast))
         final_z = passes[-1][0] if passes else z_top  # an allowance that is not finished stays on the face
-        removed = residual.intersection(Region.rectangle(bounds.min_x, final_z, bounds.max_x, bounds.max_z))
+        removed = residual.intersection(Region.rectangle(max(self._inner_x(bounds), bounds.min_x), final_z, bounds.max_x, bounds.max_z))
         if not passes:
             return BlockResult((header, footer), Region.empty(), ("facing: the allowance is all that stands above the target, nothing to cut",))
         clearance = context.safety.clearance_mm
-        x_in = bounds.min_x - self.overtravel_mm  # past the centre, so the nose radius leaves no pip
+        x_in = self._inner_x(bounds)  # past the centre, so the nose radius leaves no pip (or at the X limit)
         here = Point(context.safety.safe_radius_mm, z_top + clearance)  # where the contour block starts too (outside in)
         moves = self._passes(context, residual, here, passes, x_in, bounds.max_x + clearance)
         return BlockResult((header, Rapid(here), *moves, footer), removed)
@@ -209,9 +236,15 @@ class FacingBlock(Block):
             note = "facing: there is no material above the target, nothing to cut"
             return BlockResult((header, footer), Region.empty(), (note,))
 
+        if self.x_limit_radius_mm is not None and self.x_limit_radius_mm >= bounds.max_x - GEOMETRY_TOLERANCE_MM:
+            return BlockResult((header, footer), Region.empty(), ("facing: the X limit is at or beyond the outside of the part, nothing to cut",))
         if self.overtravel_mm > bounds.max_x:
             raise BlockError(f"the overtravel ({self.overtravel_mm:g} mm) is more than the radius of the part ({bounds.max_x:g} mm)")
-        return self._as_contour(context) if self.direction is FacingDirection.OUTSIDE_IN else self._centre_out(context, header, footer)
+        result = self._as_contour(context) if self.direction is FacingDirection.OUTSIDE_IN else self._centre_out(context, header, footer)
+        if self.x_limit_radius_mm is None:
+            return result
+        note = f"{self.name or self.type_name}: limited to X {2 * self.x_limit_radius_mm:g} (diameter); the material inside it stays for another block"
+        return replace(result, messages=(note, *result.messages))
 
 
 def _over_the_top(here: Point | None, above: float, clearance: float, feed: float) -> list:

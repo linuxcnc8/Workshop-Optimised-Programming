@@ -24,6 +24,7 @@ commit (or two), so commits can be picked one by one. `git log 82a637d..bigblue-
 | `76e1fc4` | Fix: File > New / Open / Undo crashed with "tool T1 is not defined" when the Tools view had a tool chosen | — |
 | `3f7e0d9`, `57b6522`, `ef01747` | Requirement status only ("tried by the user") | — |
 | branch `step-import` | STEP part import for a turning contour (turned outline, no CAD library) | C17 |
+| branch `toolpath-limits` | Toolpath limits: Z+ / Z- / X on a turning contour block, X on a facing block, dashed in the picture | B30, B31, B32 |
 
 About 52 files, +2100 / -130 lines, of which more than half are tests, docs and the manual. No new library. None of the
 mypyc-compiled modules (`wop/core/compiled.py`) were touched. Only run on Linux (Python 3.13, PySide6, offscreen Qt
@@ -183,6 +184,32 @@ via `cadquery-ocp` is a 68 MB wheel and was rejected). STEP is text, and a turne
 - New constants `STEP_*` at the end of `constants.py`, below `NOT_EDITABLE_BELOW` (not in Preferences).
 - Tests: `tests/test_step_import.py` (a hand-written `tests/data/step/cylinder_20x30.step`; the user's parts are not
   in the repository).
+
+### 10. Toolpath limits (branch `toolpath-limits`, on top of `step-import`)
+
+The user comes from ECAM, where every turning operation has "toolpath limits" (Z+, Z-, X+, X-). He uses them "a lot":
+to share one contour between tools (a back-turning tool for the last part), to keep away from the chuck, to stop facing
+before the centre, and to rough the front of a long part first while the bar is stiff. The contour is never changed.
+
+- `ContourTurningBlock`: `z_plus_limit_mm`, `z_minus_limit_mm`, `x_limit_radius_mm`; `FacingBlock`: `x_limit_radius_mm`.
+  All default to None (no limit), so old projects plan as before. Plain Z values from Z0 and an X radius (shown as a
+  diameter); minus is towards the chuck. The user dropped ECAM's other references ("Model top", "Stock top"...): "just
+  keep distance from Z0".
+- Only the X limit on the part side (outside: the smallest diameter, inside: the largest). On the free side it would
+  make the tool run through the stock to get in; left out.
+- `wop/core/blocks/toolpath_limits.py`: the contour clipped to the limits (`limited_path`: beyond the X limit straight
+  along it) and the box of the limits. The contour block plans the wanted lines from the material clipped to the box;
+  the cuts, the ways and the check see all the material; `protected` stays the part as drawn, so the back of the insert
+  may touch stock beyond a Z+ limit.
+- The finishing pass obeys the limits (user: "Z limit retracts, X limit carries on straight"): at a Z- limit it leaves
+  at 45 degrees by the clearance instead of cutting up the limit; over a neck below the X limit it runs along the limit.
+- Facing with an X limit: no overtravel (greyed), its face contour gets a wall at the limit so no line runs on.
+- A note on a limited block names the limits; `Block.limit_lines` + `render_svg(limits=...)` draw them as thin dashed
+  lines while the block is chosen (user: only then). The 3D view does not show them.
+- The "written as drawn" line in `CLAUDE.md` now says typed limits are the only thing that shortens a block.
+- The example projects gained the three empty fields (`make_block_examples.py`, `make_example_project.py`,
+  `make_compensation_test.py`, run with an empty settings folder so the user's own presets stay out).
+- Tests: `tests/test_toolpath_limits.py`. Not tried by the user yet.
 
 ## New generic form hooks
 

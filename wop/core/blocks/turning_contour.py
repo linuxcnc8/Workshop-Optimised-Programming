@@ -43,6 +43,7 @@ from .styles import DEFAULT_STYLE_KEY, STYLES, StyleError
 from .turning_common import PassDirection, TurningSide, inside_stock_radius, nose_radius_presets, with_solid_note
 from ..analytic.far_side import works_on_far_side
 from .turning_job import merge_straight_rapids
+from .toolpath_limits import ToolpathLimits, limit_box, limited_path
 
 
 @dataclass(frozen=True)
@@ -56,6 +57,8 @@ class PlanInputs:
     outer: float  # the radius beyond the material and the contour where the area to remove is closed
     start_z: float  # the front of the block's material
     stock_radius: float  # the radius of the material the block starts from (inside: the hole; 0: a solid bar)
+    full_path: list[Segment] | None = None  # the contour as drawn with its run-on wall, when the toolpath limits shortened `path`; None: as `path`
+    ran_on: bool = False  # `path` ends with a wall added out to the material (not part of the contour)
 
 
 @BLOCK_TYPES.register
@@ -77,6 +80,9 @@ class ContourTurningBlock(Block):
     plunge_depth_of_cut_mm: float | None = None  # deepest one plunge into a pocket goes; None: the depth of cut
     min_free_angle_deg: float = EXAMPLE_MIN_FREE_ANGLE_DEG  # angle that must stay free between the back of the tool and the wall behind a pocket
     style: str = DEFAULT_STYLE_KEY  # the key of the style that decides the order of the roughing lines and the routes (`rough_style.py`)
+    z_plus_limit_mm: float | None = None  # toolpath limit (B30): the block cuts only at this Z and behind it; None: no limit
+    z_minus_limit_mm: float | None = None  # toolpath limit: the block cuts only at this Z and in front of it; None: no limit
+    x_limit_radius_mm: float | None = None  # toolpath limit on the side of the part (outside: smallest, inside: largest radius); None: no limit
 
     @classmethod
     def example(
@@ -106,8 +112,16 @@ class ContourTurningBlock(Block):
         return (
             "name", "style", "contour_id", "side", "pass_direction", "tool_number", "spindle", "feed_mm_per_rev",
             "depth_of_cut_mm", "finish_allowance_mm", "finish_pass", "finish_feed_mm_per_rev", "finish_spindle_value", "cutter_compensation",
-            "plunge_feed_mm_per_rev", "plunge_depth_of_cut_mm", "min_free_angle_deg", "coolant",
+            "plunge_feed_mm_per_rev", "plunge_depth_of_cut_mm", "min_free_angle_deg",
+            "z_plus_limit_mm", "z_minus_limit_mm", "x_limit_radius_mm", "coolant",
         )
+
+    def form_headings(self) -> dict[str, str]:
+        return {"z_plus_limit_mm": "Toolpath limits (empty: no limit; minus is towards the chuck)"}
+
+    @property
+    def limits(self) -> ToolpathLimits:
+        return ToolpathLimits(self.z_plus_limit_mm, self.z_minus_limit_mm, self.x_limit_radius_mm)
 
     def field_choices(self) -> dict[str, list[tuple[str, str]]]:
         """The style dropdown: the styles of turning contour; the style of the block even when this program does not know it."""
@@ -145,6 +159,9 @@ class ContourTurningBlock(Block):
             "plunge_feed_mm_per_rev": "Plunge feed",
             "plunge_depth_of_cut_mm": "Plunge depth of cut",
             "min_free_angle_deg": "Back clearance",
+            "z_plus_limit_mm": "Z+ limit (cuts only behind this Z)",
+            "z_minus_limit_mm": "Z- limit (cuts only in front of this Z)",
+            "x_limit_radius_mm": ("X- limit, X radius (cuts no smaller)" if self.side is TurningSide.OUTSIDE else "X+ limit, X radius (cuts no larger)"),
         }
 
     def __post_init__(self) -> None:
@@ -162,6 +179,7 @@ class ContourTurningBlock(Block):
             raise BlockError("the plunge depth of cut must be greater than zero")
         if not 0 <= self.min_free_angle_deg < RIGHT_ANGLE_DEG:
             raise BlockError("the free angle must be at least 0 and less than 90 degrees")
+        self.limits.check()
 
     @property
     def contour_ids(self) -> tuple[str, ...]:
@@ -187,6 +205,12 @@ class ContourTurningBlock(Block):
         except BlockError:
             return ()
 
+    def limit_lines(self, context: BlockContext) -> tuple[Segment, ...]:
+        bounds = context.residual.bounds
+        if bounds is None or not self.limits.active:
+            return ()
+        return self.limits.lines(bounds, context.safety.clearance_mm)
+
     def _analytic_inputs(self, context: BlockContext) -> PlanInputs | None:
         """What the analytic planner (`wop/core/analytic`) needs from the form and the material, or None when there is no material."""
         residual = context.residual
@@ -197,10 +221,20 @@ class ContourTurningBlock(Block):
         contour = context.contour(self.contour_id)
         self._check_contour(contour.segments)
         stock_radius = bounds.max_x if sign > 0 else inside_stock_radius(residual, contour.segments[-1].end.z, contour.segments[0].start.z)
-        path = list(contour.segments)
+        drawn = list(contour.segments)
+        limits = self.limits
+        path = limited_path(drawn, limits, sign > 0) if limits.active else list(drawn)
+        if not path:
+            return None
         end = path[-1].end
-        if sign * (stock_radius - end.x) > GEOMETRY_TOLERANCE_MM:
+        ran_on = sign * (stock_radius - end.x) > GEOMETRY_TOLERANCE_MM
+        if ran_on:
             path.append(LineSegment(end, Point(stock_radius, end.z)))  # the last wall runs on to the material
+        full_path = None
+        if limits.active:
+            full_path = list(drawn)
+            if sign * (stock_radius - drawn[-1].end.x) > GEOMETRY_TOLERANCE_MM:
+                full_path.append(LineSegment(drawn[-1].end, Point(stock_radius, drawn[-1].end.z)))
         start_z = max(path[0].start.z, bounds.max_z if context.front_z is None else context.front_z)
         outer = stock_radius + sign * context.safety.clearance_mm
         reaching = max(box_of(s)[2] for s in path) if sign > 0 else min(box_of(s)[0] for s in path)  # exact: an arc counts with its extreme points
@@ -213,7 +247,17 @@ class ContourTurningBlock(Block):
             stock, cleaned = stock_chains(context.raw_part), None  # a bar nobody has cut: exact
         else:  # what earlier blocks left: the loops of the residual (`analytic.material`)
             stock, cleaned = chains_of_region(residual), lambda: chains_of_region(residual, True)
-        return PlanInputs(path, stock, cleaned, sign > 0, direction, outer, start_z, stock_radius)
+        return PlanInputs(path, stock, cleaned, sign > 0, direction, outer, start_z, stock_radius, full_path, ran_on)
+
+    def _limited_loops(self, loops: list[Loop], inputs: PlanInputs) -> list[Loop]:
+        """The material clipped to the toolpath limits: what the block may remove (the wanted plan). The ways and the cuts still see all of it."""
+        if not self.limits.active or not loops:
+            return loops
+        return chains_of_region(region_of_loops(loops).intersection(self._box(inputs)))
+
+    def _box(self, inputs: PlanInputs) -> Region:
+        reach = abs(inputs.outer) + abs(inputs.start_z) + max(abs(p.z) for s in inputs.path for p in (s.start, s.end)) + 1
+        return limit_box(self.limits, inputs.outside, not inputs.outside, reach)
 
     def wanted_plan(self, context: BlockContext):
         inputs = self._analytic_inputs(context)
@@ -225,11 +269,16 @@ class ContourTurningBlock(Block):
             plunge_depth=self.plunge_depth_of_cut_mm, outer=inputs.outer, start_z=inputs.start_z, chuck_z=raw.clamp_z_mm,
             grid_from=(raw.outer_radius_mm, raw.front_z_mm),
         )
+        stock = self._limited_loops(inputs.stock, inputs)
+        cleaned = inputs.cleaned
+        if cleaned is not None and self.limits.active:
+            whole_cleaned = cleaned
+            cleaned = lambda: self._limited_loops(whole_cleaned(), inputs)  # noqa: E731
         if inputs.outside:
-            return wanted_plan(inputs.stock, job, inputs.cleaned)
-        cleaned = inputs.cleaned  # inside: planned mirrored in X as an outside block, the levels from the bore of the raw bar
+            return wanted_plan(stock, job, cleaned)
+        # inside: planned mirrored in X as an outside block, the levels from the bore of the raw bar
         mirrored = replace(job, path=MIRROR_X.path(inputs.path), outer=-inputs.outer, grid_from=(-raw.inner_radius_mm, raw.front_z_mm))
-        return MIRROR_X.plan(wanted_plan(MIRROR_X.loops(inputs.stock), mirrored, (lambda: MIRROR_X.loops(cleaned())) if cleaned is not None else None))
+        return MIRROR_X.plan(wanted_plan(MIRROR_X.loops(stock), mirrored, (lambda: MIRROR_X.loops(cleaned())) if cleaned is not None else None))
 
     def roughing_cuts(self, context: BlockContext, run_on: float = 0.0):
         """The wanted plan shortened for the tool, ridden up and cut (`analytic.roughing_cuts`).
@@ -274,6 +323,13 @@ class ContourTurningBlock(Block):
         """The finishing pass of the analytic planner (`cut_operations.finishing_pass`), from `start` (where the roughing ended) to the safe
         point, and the note when the nose cannot follow the contour (`nose_follow.py`)."""
         path, outside, outer = inputs.path, inputs.outside, inputs.outer
+        if self.z_minus_limit_mm is not None:
+            if inputs.ran_on:
+                path = path[:-1]  # the wall run on to the material is not part of the contour
+            end = path[-1].end
+            if abs(end.z - self.z_minus_limit_mm) <= GEOMETRY_TOLERANCE_MM:  # stopped by the Z- limit: away at 45 degrees, not up the limit
+                away = context.safety.clearance_mm
+                path = [*path, LineSegment(end, Point(end.x + (away if outside else -away), end.z + away))]
         _begin, finish = self._block_ends(context, inputs.start_z)
         feed = self.finish_feed_mm_per_rev or self.feed_mm_per_rev
         job = FinishingJob(path, context.tool, outside, self.cutter_compensation, feed, context.safety.clearance_mm, outer)
@@ -341,9 +397,15 @@ class ContourTurningBlock(Block):
         residual = context.residual
         inputs = self._analytic_inputs(context)
         if inputs is None:
-            return BlockResult(ends, Region.empty(), ("turning: no material left",))
+            gone = self.limits.active and residual.bounds is not None
+            return BlockResult(ends, Region.empty(), ("turning: no part of the contour lies between the Z limits" if gone else "turning: no material left",))
         ring = removal_ring(inputs.path, inputs.outside, 0.0, inputs.outer, inputs.start_z)
         whole = residual.intersection(Region.from_segments(ring))  # all the material between the stock and the contour
+        protected = residual.difference(whole)
+        if self.limits.active:
+            whole = whole.intersection(self._box(inputs))  # only inside the toolpath limits
+            drawn_ring = removal_ring(inputs.full_path or inputs.path, inputs.outside, 0.0, inputs.outer, inputs.start_z)
+            protected = residual.difference(Region.from_segments(drawn_ring))  # the part as drawn; the stock beyond the limits may be touched
         if whole.is_empty:
             return BlockResult(ends, Region.empty(), ("turning: nothing to remove",))
         try:
@@ -351,6 +413,8 @@ class ContourTurningBlock(Block):
         except StyleError:
             raise BlockError(f"the style {self.style!r} is not available in this program: choose another style") from None
         rough, notes, first = self._analytic_roughing(context, run_on)
+        if self.limits.active:
+            notes = (self.limits.note(self.name or self.type_name), *notes)
         begin, _finish = self._block_ends(context, inputs.start_z)
         operations = [ends[0], *([Rapid(begin)] if inputs.outside else []), *rough]  # inside: the first rapid goes straight over the bore
         removed = self._taken(residual, first, whole) if first is not None else Region.empty()
@@ -360,7 +424,7 @@ class ContourTurningBlock(Block):
             operations += finishing
             notes = (*notes, *finish_notes)
             removed = removed.union(whole)  # the finishing pass follows the contour: it takes what the roughing could not reach (the note stays)
-        result = BlockResult(tuple(merge_straight_rapids([*operations, ends[1]])), removed, notes, residual.difference(whole))
+        result = BlockResult(tuple(merge_straight_rapids([*operations, ends[1]])), removed, notes, protected)
         return result if inputs.outside else with_solid_note(result, inputs.stock_radius)
 
     @staticmethod

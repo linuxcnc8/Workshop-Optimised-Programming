@@ -72,6 +72,7 @@ Facing cuts the end face of the part flat down to a Z that you give. The tool ta
 \item[\field{Depth of cut}] How deep each pass is.
 \item[\field{Overtravel past the centre (or bore)}] How far the tool goes past the centre so that no small point of material stays. For a tube, past the bore. The preset follows the tool (two nose radii).
 \item[\field{Finish allowance} and \field{Finishing pass}] The last layer and its own pass (Section~\ref{sec:blocks:common}).
+\item[\field{X- limit}] Under \emph{Toolpath limit}. Empty: the facing goes to the centre. With a diameter, the facing stops there and the material inside it stays, for example a centre you do not want to touch. The overtravel is not used then. While the block is chosen, the picture shows the limit as a thin dashed line.
 \end{description}
 
 Each pass comes in beside the part, feeds the last millimetre into the material, cuts to the centre, and rises at feed until it is clear of the face. Only then does the tool move away in a rapid move.
@@ -109,7 +110,10 @@ This block turns the part until a contour that you drew is left (Chapter~\ref{ch
 \item[\field{Plunge feed} and \field{Plunge depth of cut}] Where the tool has to cut straight into the material, for example into a pocket behind a step, it can use another, usually smaller feed and depth. Empty: the values of the block.
 \item[\field{Back clearance}] The smallest angle that the back of the tool keeps free from the contour (the free angle of the tool, in degrees). Where the back of the tool would touch the contour with less, roughing does not cut. The preset is 5~degrees.
 \item[\field{Style}] The order in which the roughing is cut (Section~\ref{sec:blocks:styles}).
+\item[\field{Z+ limit}, \field{Z- limit}, \field{X- limit}] Under \emph{Toolpath limits}: the block cuts only between them, and the contour stays as it is. Empty: no limit. Minus is always towards the chuck. The Z limits are plain Z values (from Z0); the X limit is a diameter. \field{Z+ limit}: the block cuts only behind this Z. \field{Z- limit}: only in front of it; the finishing pass stops there and leaves at 45~degrees, it does not cut up the limit. \field{X- limit}: the block cuts no smaller than this diameter; where the contour goes below it, the finishing pass runs straight along the limit. For a bore the X limit is called \field{X+ limit} and the block cuts no larger. The material beyond the limits stays for the next block, and a note under the block says that it is limited. While the block is chosen, the picture shows the limits as thin dashed lines.
 \end{description}
+
+Use the limits to share one contour between blocks without drawing it twice: for example rough the front of a long part first while the bar is still stiff (\field{Z- limit} $-70$), then the rest (\field{Z+ limit} $-67$, a little overlap), or give the last few millimetres to a back-turning tool. Do not finish at a \field{Z+ limit} while the material in front of it still stands: the tool comes down beside it.
 
 \begin{notebox}
 Roughing stays off the finished part: it is cut only as far as the tool reaches, and the note under the block names what stays. But the finishing pass \emph{always} follows the contour, whatever the tool can reach. For a contour that your tool cannot make, for example a cavity behind a narrow mouth or an undercut, turn the finishing pass off. Otherwise the check reports a collision. Look at the picture and step through the block to see what the tool does.

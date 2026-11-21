@@ -201,13 +201,22 @@ class ViewsMixin:
         extra += self._far_side_points(analysis.plan)
         outline = self.selected_outline(analysis, upto_block)
         extra += tuple(segments_to_polyline(list(outline))) if outline else ()
+        limits = self.selected_limits(analysis, upto_block)
         return render_svg(analysis.plan, upto_block, analysis.findings, self.colors, with_legend,
                           shown[1] if shown else None, extra_points=extra, workholding=placed, outline=outline,
-                          line_scale=line_scale)
+                          line_scale=line_scale, limits=limits)
 
     def selected_outline(self, analysis: Analysis, upto_block: int | None = None) -> tuple[Segment, ...]:
         """The finished shape of the block chosen in the flow list, made from its form values (nothing for a block that
         is not planned, or not shown in the picture). Only this one block, so the picture stays clear."""
+        return self._of_selected(analysis, upto_block, "target_outline")
+
+    def selected_limits(self, analysis: Analysis, upto_block: int | None = None) -> tuple[Segment, ...]:
+        """The toolpath limits of the block chosen in the flow list (B32), as lines; only while it is chosen."""
+        return self._of_selected(analysis, upto_block, "limit_lines")
+
+    def _of_selected(self, analysis: Analysis, upto_block: int | None, hook: str) -> tuple[Segment, ...]:
+        """The lines a hook of the chosen block gives (`target_outline`, `limit_lines`), with the material before it."""
         if self.selected is None or analysis.plan is None:
             return ()
         if upto_block is not None and self.selected > upto_block:
@@ -220,7 +229,7 @@ class ViewsMixin:
                 self.program.raw_part, self.program.equipped_tool(block_plan.block.tool_number),
                 block_plan.residual_before, self.program.safety, self.program.contours,
             )
-            return block_plan.block.target_outline(context)
+            return getattr(block_plan.block, hook)(context)
         except (BlockError, ValueError):
             return ()
 

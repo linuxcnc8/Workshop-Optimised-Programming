@@ -282,7 +282,8 @@
         "finish_feed_mm_per_rev": 0.1,
         "finish_spindle_value": 180,
         "overtravel_mm": 0.6000000007788876,
-        "face_stock_mm": 0
+        "face_stock_mm": 0,
+        "x_limit_radius_mm": null
       }
     }
   ],
