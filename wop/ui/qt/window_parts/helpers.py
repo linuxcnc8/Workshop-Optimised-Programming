@@ -34,6 +34,8 @@ PROJECT_FILTER = f"WOP project (*{PROJECT_FILE_SUFFIX} *.json)"
 
 
 DXF_FILTER = "DXF drawing (*.dxf)"
+PART_FILTER = "DXF drawing or STEP part (*.dxf *.DXF *.step *.stp *.STEP *.STP);;DXF drawing (*.dxf *.DXF);;STEP part (*.step *.stp *.STEP *.STP)"
+STEP_SUFFIXES = (".step", ".stp")
 
 
 LIBRARY_FILTER = "Library (*.json)"

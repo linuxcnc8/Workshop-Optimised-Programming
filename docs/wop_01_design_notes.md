@@ -47,6 +47,9 @@ How the program is built and why: the current state only, in short bullets. Hist
 - DXF (`dxf_files.read_dxf`, ezdxf): LINE, ARC, polylines, points and text as named points; everything else counted in the notes.
 - Part contour from DXF: axis horizontal or vertical, mirrored from below the axis, lines on the axis dropped, longest chain, turned to start at the highest Z.
 - As drawn (tools, workholding, components): nothing moved, turned or mirrored, no line dropped; one closed outline.
+- STEP part (turning contour only, no CAD library): `step_part21.py` reads the text, `step_files.read_step` follows MANIFOLD_SOLID_BREP -> faces (plane, cylinder, cone, torus, sphere, surface of revolution; other surfaces kept by their edges) and samples the edges (line, circle, ellipse, B-spline via `core/bspline.py`), in mm from the solid's units.
+- Turned outline (`core/turned_profile.py`): axis = the line most round faces share; each round face is an exact line or arc in (z, radius); the outside is the turned envelope (largest radius per z; non-round faces count only where they stick out, so a hex gives its across-corners size and flats, keyways, cross holes drop out); a bore is the smallest radius of the faces that look at the axis. Z0 at the front face (either end, the user picks), outside or one bore; the pieces are an exact chain (`contour_from_chain`, no join by distance).
+- Splines on a revolved face come in as short lines (thinned to `STEP_SIMPLIFY_TOLERANCE_MM`); fitting them with arcs (C4) is open.
 
 ## 6. Areas and checks
 - Areas are exact closed chains of lines and arcs (`Region` in `wop/core/geometry/region.py`, kernel in `wop/core/geometry/chains.py`): booleans by trim-and-link, exact offsets, triangles for 3D; no chords, no library.

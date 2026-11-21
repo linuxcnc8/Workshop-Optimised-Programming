@@ -238,6 +238,32 @@ def contour_from_drawing(drawing: DxfDrawing, axes: DxfAxes = DxfAxes.HORIZONTAL
     return DxfImport(ContourDefinition(start, steps), tuple(messages))
 
 
+def contour_from_chain(drawing: DxfDrawing) -> DxfImport:
+    """A contour from a drawing whose pieces are already one exact chain in order (the STEP import), axes horizontal.
+
+    Unlike `contour_from_drawing`, nothing is joined by distance, so pieces shorter than the join tolerance are kept.
+    Each piece is turned to start where the one before ends. Raises ContourError."""
+    messages: list[str] = list(drawing.notes)
+    pieces = _lathe_pieces(DxfDrawing(drawing.entities), DxfAxes.HORIZONTAL, messages, as_drawn=True)
+    if not pieces:
+        raise ContourError("the drawing has no lines or arcs to use")
+    if len(pieces) > 1:
+        follower = pieces[1]
+        if min(pieces[0].start.distance_to(follower.start), pieces[0].start.distance_to(follower.end)) < min(
+            pieces[0].end.distance_to(follower.start), pieces[0].end.distance_to(follower.end)
+        ):
+            pieces[0] = pieces[0].reversed()
+    chain = [pieces[0]]
+    for piece in pieces[1:]:
+        if piece.end.distance_to(chain[-1].end) < piece.start.distance_to(chain[-1].end):
+            piece = piece.reversed()
+        chain.append(piece)
+    if chain[0].start.z < chain[-1].end.z:
+        chain = [piece.reversed() for piece in reversed(chain)]
+    start, steps = _steps_of_chain(chain, messages)
+    return DxfImport(ContourDefinition(start, steps), tuple(messages))
+
+
 def _steps_of_chain(chain: list[_Piece], messages: list[str]) -> tuple[Point, tuple[Step, ...]]:
     """The start point and the steps of an ordered chain of pieces (small gaps are closed and named in the messages)."""
     junctions: list[Point] = []

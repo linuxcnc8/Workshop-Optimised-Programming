@@ -26,7 +26,8 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from ...core.dxf_contour import DxfAxes
+from ...core.constants import GEOMETRY_TOLERANCE_MM
+from ...core.dxf_contour import DxfAxes, DxfLine
 from ...core.sketch.modes import TURNING
 from ...core.sketch.model import SketchError
 from ..number_text import number_from_text
@@ -34,7 +35,7 @@ from ..sketch_constants import CORNER_ACTIONS, TOOL_SELECT
 from ..model.helpers import ModelError
 from ..sketch_session import SketchSession
 from ..sketch_target import SketchTarget
-from .window_parts.helpers import DXF_FILTER
+from .window_parts.helpers import DXF_FILTER, PART_FILTER, STEP_SUFFIXES
 from .sketch_canvas import SketchCanvas
 from .panel_splitter import RightPanelSplitter
 from .sketch_panel import ConstraintPanel, ask_value
@@ -178,8 +179,12 @@ class SketchDialog(QDialog):
     def _import_dxf(self) -> None:
         if self.session.sketch.pieces() and QMessageBox.question(self, self.windowTitle(), "Replace the sketch with a drawing?") != QMessageBox.Yes:
             return
-        name, _filter = QFileDialog.getOpenFileName(self, "Import DXF", "", DXF_FILTER)
+        turning = self.session.mode is TURNING
+        name, _filter = QFileDialog.getOpenFileName(self, "Import", "", PART_FILTER if turning else DXF_FILTER)
         if not name:
+            return
+        if Path(name).suffix.lower() in STEP_SUFFIXES:
+            self._import_step(Path(name))
             return
         axes = DxfAxes.HORIZONTAL
         if self.session.mode is TURNING:
@@ -189,6 +194,27 @@ class SketchDialog(QDialog):
                 return
             axes = next(a for a in DxfAxes if a.value == chosen)
         messages = self.session.load_drawing(Path(name), axes)
+        if messages:
+            QMessageBox.information(self, self.windowTitle(), "\n".join(messages))
+
+    def _import_step(self, path: Path) -> None:
+        """A STEP part: the turned outline, with the front (Z0) at the end the user picks; outside or one of the bores."""
+        profiles = self.session.read_part(path)
+        if profiles is None:
+            return
+        ends = [f"End {index + 1}: front face \u00d8{_top_diameter(p.outside.entities):.3f} (length {p.length:.3f}, largest \u00d8{p.max_diameter:.3f})" for index, p in enumerate(profiles)]
+        chosen, accepted = QInputDialog.getItem(self, self.windowTitle(), "Which end of the part is the front (Z0)?", ends, 0, False)
+        if not accepted:
+            return
+        profile = profiles[ends.index(chosen)]
+        bore = None
+        if profile.bores:
+            choices = ["Outside"] + [f"Bore {index + 1} (\u00d8{_top_diameter(b.entities):.3f} at its start)" for index, b in enumerate(profile.bores)]
+            picked, accepted = QInputDialog.getItem(self, self.windowTitle(), "Which contour of the part?", choices, 0, False)
+            if not accepted:
+                return
+            bore = None if picked == choices[0] else choices.index(picked) - 1
+        messages = self.session.load_profile(profile, bore)
         if messages:
             QMessageBox.information(self, self.windowTitle(), "\n".join(messages))
 
@@ -212,3 +238,10 @@ class SketchDialog(QDialog):
     def _relation(self, ui_kind: str) -> None:
         self.session.use_relation(ui_kind)
         self._refresh()
+
+
+def _top_diameter(entities) -> float:
+    """The largest diameter at the highest Z of an outline (the front face of the outside, the mouth of a bore)."""
+    ends = [point for e in entities if isinstance(e, DxfLine) for point in (e.start, e.end)]
+    top = max(z for z, _r in ends)
+    return 2 * max(r for z, r in ends if abs(z - top) <= GEOMETRY_TOLERANCE_MM)

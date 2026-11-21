@@ -11,6 +11,8 @@ from dataclasses import replace
 from pathlib import Path
 
 from ..adapters.dxf_files import read_dxf
+from ..adapters.step_files import read_step
+from ..core.turned_profile import TurnedProfile, contour_from_profile, turned_profile
 from ..core.contour import ContourError
 from ..core.contour_solver import build_contour
 from ..core.dxf_contour import DxfAxes, contour_from_drawing, shape_from_drawing
@@ -257,10 +259,36 @@ class SketchModifyMixin:
             self.message = str(error)
             self._notify()
             return []
+        return self._replace_sketch(drawn, imported.messages)
+
+    def _replace_sketch(self, drawn, messages) -> list[str]:
         ok = self._edit(lambda: setattr(self, "sketch", drawn))
         self.selected_points, self.selected_pieces = set(), set()
         self._notify()
-        return list(imported.messages) if ok else []
+        return list(messages) if ok else []
+
+    # --- STEP part (turning contour only) ----------------------------------------------------------------------------
+
+    def read_part(self, path: Path) -> tuple[TurnedProfile, TurnedProfile] | None:
+        """The turned profile of a STEP part with the front at either end, or None (the problem goes to `message`)."""
+        try:
+            solid = read_step(path)
+            return turned_profile(solid, True), turned_profile(solid, False)
+        except (ContourError, ValueError) as error:
+            self.message = str(error)
+            self._notify()
+            return None
+
+    def load_profile(self, profile: TurnedProfile, bore: int | None = None) -> list[str]:
+        """Replace the sketch with the outside (bore None) or a bore of a turned profile (one Undo step)."""
+        try:
+            imported = contour_from_profile(profile, bore)
+            drawn = sketch_from_contour(build_contour("import", "import", imported.definition))
+        except (ContourError, SketchError, ValueError) as error:
+            self.message = str(error)
+            self._notify()
+            return []
+        return self._replace_sketch(drawn, imported.messages)
 
     # --- trim ---------------------------------------------------------------------------------------------------------
 

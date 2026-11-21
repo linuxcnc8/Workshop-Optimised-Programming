@@ -205,11 +205,23 @@ Chuck body & Face & The front face of the chuck. Chapter~\ref{ch:workholding}. \
 
 \section{Importing a DXF drawing}\label{sec:sketch:dxf}
 
-If you have the shape as a drawing from a CAD program, the button \emph{Import DXF} in the section \emph{General} loads it. It replaces what is in the sketch, and WOP asks first if there is something in it.
+If you have the shape as a drawing from a CAD program, the button \emph{Import} in the section \emph{General} loads it. It replaces what is in the sketch, and WOP asks first if there is something in it.
 
 For a contour of a part WOP asks \emph{How does the part lie in the drawing?}: with the spindle axis horizontal (drawing X is Z, drawing Y is the radius), or vertical (drawing Y is Z, drawing X is the radius). For tool and workholding shapes, the drawing is taken as it is, with the spindle axis horizontal; nothing is moved, turned or mirrored, and the origin of the drawing stays the origin. A \emph{point} with a \emph{text} next to it in the drawing becomes a named point.
 
 WOP reads lines, arcs and polylines (a polyline is split into its lines and arcs). It does not read circles, ellipses, splines or dimensions of the drawing. After the import, a message tells you what was taken and what was left out. The imported shape is a normal sketch: you can dimension it and change it.
+
+\section{Importing a STEP part}\label{sec:sketch:step}
+
+For a contour of a part, the same button also loads a 3D part saved as a STEP file (\emph{.step} or \emph{.stp}). In SolidWorks use \menupath{File, Save As} and the type \emph{STEP AP214}; the part file of the CAD program itself (for example \emph{.SLDPRT}) cannot be read. WOP finds the spindle axis by itself: it is the axis that most round faces of the part share.
+
+WOP asks two questions:
+\begin{itemize}
+\item \emph{Which end of the part is the front (Z0)?} Each end is shown with the diameter of its face, the length of the part and its largest diameter. The front face becomes Z0 and the part lies at negative Z.
+\item \emph{Which contour of the part?} Only when the part has a bore: the outside, or one of the bores.
+\end{itemize}
+
+The outside is the shape the part has when it turns: at every Z the largest diameter of the part. A hex comes in at its size across the corners. Flats, keyways, cross holes and gear teeth do not change it; a message tells you how many such faces were left out. Fillets come in as arcs and chamfers and tapers as lines. A spline on a turned face comes in as many short lines. The imported shape is a normal sketch: delete what you do not want to turn (for example the back face, if you part off there), dimension it and change it.
 
 \section{Locked things}\label{sec:sketch:locked}
 
@@ -219,6 +231,6 @@ In some sketches parts of the drawing are \textcolor{green!45!black}{green}. The
 
 \begin{itemize}
 \item It cannot offset a contour (make a parallel copy at a distance) or turn a whole shape by an angle. Draw the line you need, or select everything and move it.
-\item It does not read circles, ellipses and splines from a DXF file.
+\item It does not read circles, ellipses and splines from a DXF file. From a STEP part, a spline comes in as short lines.
 \item A dimension that only shows a size and does not drive the shape (a \emph{reference dimension}) does not exist yet.
 \end{itemize}

@@ -23,7 +23,7 @@ from .sketch_view_constants import BUTTON_PX, HEADING_SCALE, ICON_PX, SECTION_GA
 UNDO_TIP = "Undo (Ctrl+Z)"
 REDO_TIP = "Redo (Ctrl+Y)"
 SNAP_TIP = "Snap to points and to horizontal / vertical while drawing"
-IMPORT_TIP = "Import DXF: replace the sketch with a drawing"
+IMPORT_TIP = "Import: replace the sketch with a DXF drawing (a contour of a part also takes a STEP part)"
 SHOW_RELATIONS_TIP = "Show the relations (H, V, ||, tan ...) in the picture"
 SHOW_DIMENSIONS_TIP = "Show the dimensions in the picture"
 

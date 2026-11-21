@@ -12,7 +12,7 @@ There are five layers. A layer may use the layers above it in this list, never b
 |---|---|---|---|
 | core | `wop/core` | The model and the rules: raw part, tools, contours, blocks, the planning of the moves, the checks. Pure Python, no library for the areas (`wop/core/geometry`). | It must run without a window and without LinuxCNC, so it can be tested on any PC. |
 | post | `wop/post` | Turns the neutral list of moves into G-code, using a text file per controller. | A new controller is a new text file, not new Python. |
-| adapters | `wop/adapters` | Everything that touches files or the outside: project, machine and library files, DXF, LinuxCNC ini and tool table. | The core never opens a file. |
+| adapters | `wop/adapters` | Everything that touches files or the outside: project, machine and library files, DXF, STEP parts (`step_part21.py`, `step_files.py`; the outline is made in `core/turned_profile.py`), LinuxCNC ini and tool table. | The core never opens a file. |
 | ui | `wop/ui` | `AppModel` (the state of the application and every action) and the forms, without any toolkit. | The behaviour of the program is testable without a window. |
 | ui/qt | `wop/ui/qt` | The PySide6 window. It only shows the model and calls it. | The only place that knows Qt. |
 

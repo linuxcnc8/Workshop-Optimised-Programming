@@ -23,6 +23,7 @@ commit (or two), so commits can be picked one by one. `git log 82a637d..bigblue-
 | `ab3e6a3` | Thread depth: empty = auto, shown in the field with the tool's tip correction; typed = cut as typed | N60 |
 | `76e1fc4` | Fix: File > New / Open / Undo crashed with "tool T1 is not defined" when the Tools view had a tool chosen | — |
 | `3f7e0d9`, `57b6522`, `ef01747` | Requirement status only ("tried by the user") | — |
+| branch `step-import` | STEP part import for a turning contour (turned outline, no CAD library) | C17 |
 
 About 52 files, +2100 / -130 lines, of which more than half are tests, docs and the manual. No new library. None of the
 mypyc-compiled modules (`wop/core/compiled.py`) were touched. Only run on Linux (Python 3.13, PySide6, offscreen Qt
@@ -153,6 +154,35 @@ diameter. The user's Turning panel already does this and it was checked on the m
 form then asked for a tool that no longer existed and the window crashed with `BlockError: tool T1 is not defined`.
 `_drop_missing_tool` (`wop/ui/model/tools.py`) clears it after every change, as `_drop_missing_contour` does for
 contours. Tests in `tests/test_app_model.py` (`ChosenToolGoneTests`).
+
+### 9. STEP part import (branch `step-import`, on top of `bigblue-changes`)
+
+The sketch editor's Import button of a turning contour also takes a STEP part (`.step`, `.stp`); tools and
+workholding still take DXF only. **No library**: the user asked to keep WOP free of extra dependencies (OpenCASCADE
+via `cadquery-ocp` is a 68 MB wheel and was rejected). STEP is text, and a turned part is made of analytic faces
+(cylinder, cone, torus, sphere, plane), so a small reader is enough:
+
+- `wop/adapters/step_part21.py`: the ISO 10303-21 text into records (simple and complex records, strings, comments).
+- `wop/adapters/step_files.py`: MANIFOLD_SOLID_BREP -> CLOSED_SHELL -> ADVANCED_FACE; surfaces with their axes; edges
+  (line, circle, ellipse, B-spline, rational B-spline) sampled; lengths in mm from the solid's
+  GLOBAL_UNIT_ASSIGNED_CONTEXT (mm, m, inch).
+- `wop/core/bspline.py`: de Boor (and NURBS) evaluation, also meant for DXF splines (C4).
+- `wop/core/turned_profile.py`: axis = the line most round faces share; every round face is an exact line or arc in
+  (z, radius); the outside is the **turned envelope** (largest radius per z): faces that are not round about the axis
+  count only where they stick out, so a hex comes in at its across-corners size and flats, keyways, cross holes and
+  gear teeth drop out; a bore is the smallest radius of the faces whose outward normal points to the axis. The user
+  picks the front end (Z0) and the outside or a bore.
+- `dxf_contour.contour_from_chain`: the pieces are already one exact chain, so they are not joined by distance
+  (`DXF_JOIN_TOLERANCE_MM` = 0.1 merged a real 0.057 mm land of one part).
+- Tried offline on 8 of the user's parts (seven from SolidWorks 2014, `CONFIG_CONTROL_DESIGN`; one from Autodesk, AP214):
+  flanges with bolt holes, a stepped bore, a pipe fitting with R150 and R8 arcs, shafts with fillets and keyways, a
+  split gear, a bolt with flats, a BSPT plug. All import as valid contours with either end as front. Parsing takes
+  0.01-0.4 s; the largest file (465 kB) takes about 1 s in all.
+- Open: a spline on a revolved face comes in as short lines (thinned within 0.002 mm); fitting arcs to it is C4.
+  Assemblies with placed parts (transforms) are not read: export one part.
+- New constants `STEP_*` at the end of `constants.py`, below `NOT_EDITABLE_BELOW` (not in Preferences).
+- Tests: `tests/test_step_import.py` (a hand-written `tests/data/step/cylinder_20x30.step`; the user's parts are not
+  in the repository).
 
 ## New generic form hooks
 

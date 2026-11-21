@@ -566,4 +566,11 @@ BSPT_THREADS = (  # ISO 7-1 table 1, mm: (size, threads per 25.4, gauge diameter
 )
 TAPER_PER_100_MM = 100  # a taper is shown as the change of the diameter per 100 mm of length
 THREAD_TAPER_LIMIT_PER_100_MM = 50  # a thread taper this steep or steeper is refused (pipe threads are 6.25)
+STEP_LINE_SAMPLE_MM = 1.0  # STEP import: a straight edge is sampled at least this often (its projection can curve)
+STEP_ARC_SAMPLE_DEG = 5.0  # STEP import: a circle or ellipse edge is sampled every this many degrees
+STEP_SPLINE_SAMPLES_PER_POINT = 8  # STEP import: samples of a spline edge per control point
+STEP_AXIS_TOLERANCE_MM = 1e-3  # STEP import: round faces whose axes are this close share one axis
+STEP_AXIS_ANGLE_TOLERANCE = 1e-6  # STEP import: axes are parallel when the sine of their angle is this small
+STEP_ENVELOPE_TOLERANCE_MM = 0.005  # STEP import: a non-round face counts where it sticks out more than this
+STEP_SIMPLIFY_TOLERANCE_MM = 0.002  # STEP import: sampled edges are thinned to lines within this distance
 REPLACED_DEFAULTS = apply_overrides(globals(), "wop.core.constants")
