@@ -24,7 +24,7 @@ commit (or two), so commits can be picked one by one. `git log 82a637d..bigblue-
 | `76e1fc4` | Fix: File > New / Open / Undo crashed with "tool T1 is not defined" when the Tools view had a tool chosen | — |
 | `3f7e0d9`, `57b6522`, `ef01747` | Requirement status only ("tried by the user") | — |
 | branch `step-import` | STEP part import for a turning contour (turned outline, no CAD library) | C17 |
-| branch `toolpath-limits` | Toolpath limits: Z+ / Z- / X on a turning contour block, X on a facing block, dashed in the picture | B30, B31, B32 |
+| branch `toolpath-limits` | Toolpath limits: Z+ / Z- / X on a turning contour block, X on a facing block, dashed in the picture; fix: no allowance wall and no dip at a Z- limit | B30, B31, B32 |
 
 About 52 files, +2100 / -130 lines, of which more than half are tests, docs and the manual. No new library. None of the
 mypyc-compiled modules (`wop/core/compiled.py`) were touched. Only run on Linux (Python 3.13, PySide6, offscreen Qt
@@ -209,7 +209,16 @@ before the centre, and to rough the front of a long part first while the bar is 
 - The "written as drawn" line in `CLAUDE.md` now says typed limits are the only thing that shortens a block.
 - The example projects gained the three empty fields (`make_block_examples.py`, `make_example_project.py`,
   `make_compensation_test.py`, run with an empty settings folder so the user's own presets stay out).
-- Tests: `tests/test_toolpath_limits.py`. Not tried by the user yet.
+- Tests: `tests/test_toolpath_limits.py`.
+- Fix after the user tried it (2026-11-23, his bolt with Z- -90 and a TNMG R0.8): the roughing left the finishing
+  allowance standing on the Z- limit as if it were a shoulder of the part, and the 45-degree way away was added to the
+  contour before the nose compensation, so the tool dipped 0.37 mm into the finished diameter and then fed straight up
+  through that wall. Now the roughing path runs on past the limit by the allowance (`_roughing_inputs`), the low ends
+  of the lines are judged in the material as it stands beyond the limit (`WantedJob.low_stock`, `make_lines(low_stock=)`)
+  so the tool rides up the limit like a shoulder, and the way away is a line added to the tool path after the
+  compensation (`FinishingJob.exit`, and `entry` for a left-hand tool planned mirrored). The finishing pass finishes the
+  diameter right up to the limit (the user: "finishing pass could go right up to the z- limit"). Regression project:
+  `tests/data/projects/bolt_z_minus_limit.wop.json` (the contour of his STEP part, not the file).
 
 ## New generic form hooks
 

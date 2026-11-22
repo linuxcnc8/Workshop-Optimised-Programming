@@ -259,8 +259,29 @@ class ContourTurningBlock(Block):
         reach = abs(inputs.outer) + abs(inputs.start_z) + max(abs(p.z) for s in inputs.path for p in (s.start, s.end)) + 1
         return limit_box(self.limits, inputs.outside, not inputs.outside, reach)
 
-    def wanted_plan(self, context: BlockContext):
+    def _stopped_by_z_minus(self, path: list[Segment]) -> bool:
+        """True when the contour (without a wall run on to the material) ends at the Z- limit: the limit cut it there."""
+        return self.z_minus_limit_mm is not None and bool(path) and abs(path[-1].end.z - self.z_minus_limit_mm) <= GEOMETRY_TOLERANCE_MM
+
+    def _roughing_inputs(self, context: BlockContext) -> PlanInputs | None:
+        """The inputs of the roughing: at a Z- limit the finishing allowance is not left standing on the limit (the limit is no wall of the
+        part, the material behind it is the next block's): the path runs on past the limit by the allowance and the clearance, and the limit
+        box (`_limited_loops`) ends the cuts at the limit itself."""
         inputs = self._analytic_inputs(context)
+        if inputs is None or self.z_minus_limit_mm is None or self.finish_allowance_mm <= GEOMETRY_TOLERANCE_MM:
+            return inputs
+        body = inputs.path[:-1] if inputs.ran_on else list(inputs.path)
+        if not self._stopped_by_z_minus(body):
+            return inputs
+        end = body[-1].end
+        beyond = Point(end.x, self.z_minus_limit_mm - self.finish_allowance_mm)
+        run_on = [LineSegment(end, beyond)]
+        if inputs.ran_on:
+            run_on.append(LineSegment(beyond, Point(inputs.path[-1].end.x, beyond.z)))
+        return replace(inputs, path=[*body, *run_on])
+
+    def wanted_plan(self, context: BlockContext):
+        inputs = self._roughing_inputs(context)
         if inputs is None:
             return None
         raw = context.raw_part
@@ -268,6 +289,7 @@ class ContourTurningBlock(Block):
             path=inputs.path, outside=True, direction=inputs.direction, allowance=self.finish_allowance_mm, depth_of_cut=self.depth_of_cut_mm,
             plunge_depth=self.plunge_depth_of_cut_mm, outer=inputs.outer, start_z=inputs.start_z, chuck_z=raw.clamp_z_mm,
             grid_from=(raw.outer_radius_mm, raw.front_z_mm),
+            low_stock=tuple(inputs.stock) if self.z_minus_limit_mm is not None and inputs.direction is LineDirection.ALONG_Z else None,
         )
         stock = self._limited_loops(inputs.stock, inputs)
         cleaned = inputs.cleaned
@@ -277,14 +299,15 @@ class ContourTurningBlock(Block):
         if inputs.outside:
             return wanted_plan(stock, job, cleaned)
         # inside: planned mirrored in X as an outside block, the levels from the bore of the raw bar
-        mirrored = replace(job, path=MIRROR_X.path(inputs.path), outer=-inputs.outer, grid_from=(-raw.inner_radius_mm, raw.front_z_mm))
+        mirrored = replace(job, path=MIRROR_X.path(inputs.path), outer=-inputs.outer, grid_from=(-raw.inner_radius_mm, raw.front_z_mm),
+                           low_stock=None if job.low_stock is None else tuple(MIRROR_X.loops(list(job.low_stock))))
         return MIRROR_X.plan(wanted_plan(MIRROR_X.loops(stock), mirrored, (lambda: MIRROR_X.loops(cleaned())) if cleaned is not None else None))
 
     def roughing_cuts(self, context: BlockContext, run_on: float = 0.0):
         """The wanted plan shortened for the tool, ridden up and cut (`analytic.roughing_cuts`).
         `run_on`: a line whose low end is open (it runs out of the material, towards the axis across X) goes on that far (the overtravel of
         the facing block, past the centre)."""
-        inputs = self._analytic_inputs(context)
+        inputs = self._roughing_inputs(context)
         plan = self.wanted_plan(context)
         if inputs is None or plan is None:
             return None
@@ -323,19 +346,20 @@ class ContourTurningBlock(Block):
         """The finishing pass of the analytic planner (`cut_operations.finishing_pass`), from `start` (where the roughing ended) to the safe
         point, and the note when the nose cannot follow the contour (`nose_follow.py`)."""
         path, outside, outer = inputs.path, inputs.outside, inputs.outer
+        away: tuple[float, float] | None = None
         if self.z_minus_limit_mm is not None:
             if inputs.ran_on:
                 path = path[:-1]  # the wall run on to the material is not part of the contour
-            end = path[-1].end
-            if abs(end.z - self.z_minus_limit_mm) <= GEOMETRY_TOLERANCE_MM:  # stopped by the Z- limit: away at 45 degrees, not up the limit
-                away = context.safety.clearance_mm
-                path = [*path, LineSegment(end, Point(end.x + (away if outside else -away), end.z + away))]
+            if self._stopped_by_z_minus(path):  # away at 45 degrees, not up the limit; added to the tool path, after the nose compensation
+                step = context.safety.clearance_mm
+                away = (step if outside else -step, step)
         _begin, finish = self._block_ends(context, inputs.start_z)
         feed = self.finish_feed_mm_per_rev or self.feed_mm_per_rev
-        job = FinishingJob(path, context.tool, outside, self.cutter_compensation, feed, context.safety.clearance_mm, outer)
+        job = FinishingJob(path, context.tool, outside, self.cutter_compensation, feed, context.safety.clearance_mm, outer, exit=away)
         if outside and back_direction(context.tool) < 0:  # a left-hand tool finishes from the chuck side towards the front: planned mirrored
-            flip = MIRROR_Z
-            mirrored = replace(job, path=flip.path(path), tool=flip.tool(context.tool))
+            flip = MIRROR_Z  # the travel turns round: the end at the limit becomes the start, the way away the way in
+            entry = None if away is None else (away[0], -away[1])
+            mirrored = replace(job, path=flip.path(path), tool=flip.tool(context.tool), exit=None, entry=entry)
             operations = [flip.operation(move) for move in finishing_pass(mirrored, flip.loops(material), flip.point(start), flip.point(finish))]
         else:
             operations = finishing_pass(job, material, start, finish)

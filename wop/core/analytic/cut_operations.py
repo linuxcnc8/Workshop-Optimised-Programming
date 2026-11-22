@@ -102,6 +102,8 @@ class FinishingJob:
     feed: float  # the finishing feed
     clearance: float  # the project's clearance (X12)
     clear_x: float  # the radius beyond the material the tool goes out to where no free way is found
+    entry: tuple[float, float] | None = None  # (dx, dz): the pass comes in to the first point of the tool path from there along that line
+    exit: tuple[float, float] | None = None  # (dx, dz): the pass leaves the last point of the tool path along that line (a toolpath limit)
 
 
 def finishing_pass(job: FinishingJob, material: list[Loop], start: Point, finish: Point) -> list:
@@ -118,9 +120,15 @@ def finishing_pass(job: FinishingJob, material: list[Loop], start: Point, finish
     sign = 1 if outside else -1
     loops = tool_loops(tool)
     moves: list = []
-    if compensate:
-        radius, _centre = nose_circle(tool)
-        lead = radius + COMPENSATION_LEAD_MARGIN_MM
+    radius, _centre = nose_circle(tool)
+    lead = radius + COMPENSATION_LEAD_MARGIN_MM
+    if job.entry is not None:  # in along a line given by the block (a toolpath limit), worked out on the tool path: the nose never dips
+        first_index, first = pieces[0]
+        dx, dz = _long_enough(job.entry, lead if compensate else 0.0)
+        begin = Point(first.start.x + dx, first.start.z + dz)
+        side = (CompensationSide.RIGHT if outside else CompensationSide.LEFT) if compensate else None
+        moves.append(LinearMove(first.start, feed, path[first_index].start if compensate else None, MoveRole.LEAD_IN if compensate else MoveRole.NORMAL, side))
+    elif compensate:
         first_index, first = pieces[0]
         tx, tz = tangent_at_start(path[first_index])
         begin = Point(max(path[first_index].start.x - tx * lead, 0), path[first_index].start.z - tz * lead)
@@ -140,7 +148,11 @@ def finishing_pass(job: FinishingJob, material: list[Loop], start: Point, finish
         else:
             moves.append(LinearMove(segment.end, feed, None if nominal is None else nominal.end, role))
     end = pieces[-1][1].end
-    if compensate:
+    if job.exit is not None:  # away along a line given by the block (a toolpath limit), from the tool path: the nose never dips
+        dx, dz = _long_enough(job.exit, lead if compensate else 0.0)
+        moves.append(LinearMove(Point(end.x + dx, end.z + dz), feed, role=MoveRole.LEAD_OUT if compensate else MoveRole.NORMAL))
+        end = moves[-1].end
+    elif compensate:
         moves.append(LinearMove(Point(max(end.x + sign * lead, 0), end.z), feed, role=MoveRole.LEAD_OUT))
         end = moves[-1].end
     way_in = clear_way(start, begin, loops, material, clearance, down_cuts=True)
@@ -152,6 +164,15 @@ def finishing_pass(job: FinishingJob, material: list[Loop], start: Point, finish
     way_out = clear_way(end, finish, loops, after, clearance)
     tail = _rebuilt(way_out, feed) if way_out is not None else _out_and_over(end, finish, job.clear_x, None)
     return [*head, *moves, *tail]
+
+
+def _long_enough(vector: tuple[float, float], across: float) -> tuple[float, float]:
+    """The line in or out made at least `across` long in X (a lead of a compensated pass must clear the nose radius)."""
+    dx, dz = vector
+    if abs(dx) >= across or abs(dx) <= GEOMETRY_TOLERANCE_MM:
+        return dx, dz
+    scale = across / abs(dx)
+    return dx * scale, dz * scale
 
 
 def _out_and_over(here: Point, target: Point, clear_x: float, feed: float | None) -> list:

@@ -12,7 +12,7 @@ from wop.core.blocks.turning_contour import ContourTurningBlock
 from wop.core.contour import ContourDefinition, LineStep
 from wop.core.contour_solver import build_contour
 from wop.core.geometry import LineSegment, Point
-from wop.core.program_model.operations import LinearMove, SpindleMode, SpindleSetting
+from wop.core.program_model.operations import ArcMove, LinearMove, Rapid, SpindleMode, SpindleSetting
 from wop.core.program_model.raw_part import RawPart
 from wop.core.program_model.stock import stock_region
 from wop.ui.svg_preview import render_svg
@@ -45,6 +45,13 @@ def contour_block(shape, **limits):
 
 def cuts(result):
     return [op for op in result.operations if isinstance(op, LinearMove)]
+
+
+def finishing_moves(result):
+    """The feed moves of the finishing pass: the ones after the rapid out to the safe point that ends the roughing."""
+    rapids = [index for index, op in enumerate(result.operations) if isinstance(op, Rapid)]
+    begin, end = rapids[-3], rapids[-1]  # out to the safe point, over to the start of the pass, ..., out to the safe point
+    return [op for op in result.operations[begin:end] if isinstance(op, LinearMove)]
 
 
 class LimitedPathTests(unittest.TestCase):
@@ -88,9 +95,16 @@ class ContourBlockLimitTests(unittest.TestCase):
 
     def test_the_finishing_pass_does_not_cut_up_a_z_minus_limit(self):
         result = contour_block(self.shape, z_minus_limit_mm=-15).generate(context(self.shape))
-        climbs = [op for op in cuts(result) if abs(op.end.z + 15) <= TOL and op.end.x > 8 + TOL]
+        finishing = finishing_moves(result)
+        climbs = [op for op in finishing if abs(op.end.z + 15) <= TOL and op.end.x > 8 + TOL]
         self.assertEqual(climbs, [])
-        self.assertTrue(any(op.end.is_close(Point(9, -14)) for op in cuts(result)), "away at 45 degrees by the clearance")
+        self.assertTrue(any(op.end.is_close(Point(9, -14)) for op in finishing), "away at 45 degrees by the clearance")
+
+    def test_the_roughing_leaves_no_allowance_on_a_z_minus_limit(self):
+        # the limit is no wall of the part: the lines go right to it (the user's bug 2026-11-23: a wall of the allowance stood there)
+        result = contour_block(self.shape, z_minus_limit_mm=-15).generate(context(self.shape))
+        ends = [op.end.z for op in cuts(result)[:-len(finishing_moves(result))]]
+        self.assertAlmostEqual(min(ends), -15, delta=TOL)
 
     def test_a_z_plus_limit_cuts_only_behind_it(self):
         result = contour_block(self.shape, z_plus_limit_mm=-38).generate(context(self.shape))
@@ -147,3 +161,34 @@ class PictureTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class BoltLimitTests(unittest.TestCase):
+    """The user's bolt (from his STEP part, front at the thread) with a Z- limit of -90 and a tool with a nose radius of 0.8 (bug 2026-11-23:
+    the 45-degree way away was nose-compensated with the contour: the tool dipped into the finished diameter and then fed up through the
+    allowance the roughing had left on the limit)."""
+
+    @classmethod
+    def setUpClass(cls):
+        from pathlib import Path
+        from wop.adapters.project_files import load_project
+        from wop.core.program_model.program import plan_program
+        from wop.core.verify import verify_plan
+        program = load_project(Path(__file__).parent / "data" / "projects" / "bolt_z_minus_limit.wop.json").program
+        cls.plan = plan_program(program)
+        cls.findings = [str(getattr(f, "message", f)) for f in verify_plan(program, cls.plan)]
+        cls.moves = [op for op in cls.plan.operations if isinstance(op, (LinearMove, ArcMove))]
+
+    def test_nothing_near_the_limit_cuts_into_the_part(self):
+        near = [f for f in self.findings if any(f"Z -{z}." in f for z in range(80, 100))]
+        self.assertEqual(near, [])
+
+    def test_the_finishing_pass_runs_on_the_diameter_to_the_limit_and_never_below_it(self):
+        diameter = [op for op in self.moves if -91 < op.end.z < -60]
+        self.assertTrue(diameter)
+        self.assertGreaterEqual(min(op.end.x for op in diameter), 6.3 - TOL)  # the tip of the tool never below the finished radius
+        self.assertTrue(any(abs(op.end.x - 6.3) <= TOL and op.end.z <= -90 + TOL for op in diameter), "finished right up to the limit")
+
+    def test_no_note_about_the_corner_at_the_limit(self):
+        notes = self.plan.messages
+        self.assertFalse([note for note in notes if "Z -88." in note or "Z -89." in note or "Z -90." in note])

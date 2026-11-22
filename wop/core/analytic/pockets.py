@@ -61,20 +61,22 @@ def _groups(closed: list[Member], by_level: list[list[tuple[float, float]]]) -> 
 
 def make_lines(
     loops: list[Loop], stock: list[Loop], positions: list[float], critical: list[float], surface: float, axis: int,
-    free_side: int, plunge_depth: float, chuck_z: float | None = None,
+    free_side: int, plunge_depth: float, chuck_z: float | None = None, low_stock: list[Loop] | None = None,
 ) -> list[WantedLine]:
     """The wanted lines: the normal lines with open ends, and for every pocket the lines of the plunge depth of cut.
 
     `positions` are the normal levels from the free side towards the part, `critical` the levels that must get a line of their
     own (flat walls), `surface` where the material begins (the level above the first), `free_side` +1 if the free air is towards
-    larger coordinates of the level axis, `chuck_z` the clamping plane (a wall)."""
+    larger coordinates of the level axis, `chuck_z` the clamping plane (a wall), `low_stock` the material the low ends are looked at in
+    (a toolpath limit clips `stock`, but beyond a Z- limit the material stands: no open end there; None: `stock`)."""
+    low_stock = stock if low_stock is None else low_stock
 
     shift = free_side * WANTED_LEVEL_SHIFT_MM
     by_level = [spans(loops, level + shift, axis) for level in positions]
     ends: dict[Member, tuple[bool, bool]] = {}
     for number, level in enumerate(positions):
         for index, (low, high) in enumerate(by_level[number]):
-            ends[(number, index)] = (end_is_open(stock, level, high + PROBE_MM, axis, chuck_z), end_is_open(stock, level, low - PROBE_MM, axis, chuck_z))
+            ends[(number, index)] = (end_is_open(stock, level, high + PROBE_MM, axis, chuck_z), end_is_open(low_stock, level, low - PROBE_MM, axis, chuck_z))
     closed = [member for member, (open_high, open_low) in ends.items() if not open_high and not open_low]
     lines: list[WantedLine] = []
     for number, level in enumerate(positions):
@@ -93,7 +95,7 @@ def make_lines(
             support = [by_level[reach][index] for (k, index) in members if k == reach]
             for low, high in spans(loops, level + shift, axis):
                 if any(_overlap((low, high), s) > WANTED_SPAN_MIN_MM for s in support) and not (
-                    end_is_open(stock, level, high + PROBE_MM, axis, chuck_z) or end_is_open(stock, level, low - PROBE_MM, axis, chuck_z)
+                    end_is_open(stock, level, high + PROBE_MM, axis, chuck_z) or end_is_open(low_stock, level, low - PROBE_MM, axis, chuck_z)
                 ):  # a stretch open to the front is reached by the normal lines
                     lines.append(_line(-1, level, low, high, axis, LineKind.POCKET, False, False, pocket, layer))
     return lines

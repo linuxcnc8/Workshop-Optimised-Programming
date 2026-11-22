@@ -1,0 +1,527 @@
+{
+ "format": 1,
+ "settings": {
+  "title": "bolt from the user STEP part, Z- limit -90 (regression)",
+  "x_mode": "DIAMETER",
+  "work_offset": "G54"
+ },
+ "raw_part": {
+  "material": "Mild steel",
+  "outer_diameter_mm": 25,
+  "length_outside_mm": 160.0,
+  "inner_diameter_mm": 0,
+  "length_mm": null,
+  "front_z_mm": 0
+ },
+ "safety": {
+  "safe_radius_mm": 20,
+  "safe_z_mm": 10,
+  "clearance_mm": 1,
+  "change_radius_mm": null,
+  "change_z_mm": null
+ },
+ "tools": [
+  {
+   "format": 1,
+   "number": 1,
+   "name": "Example turning tool (iso holder)",
+   "pieces": [
+    {
+     "role": "CUTTER",
+     "segment": {
+      "type": "arc",
+      "start": [
+       0.585597041233067,
+       1.2558169075542336
+      ],
+      "end": [
+       1.3803678650605136,
+       0.12076653968827761
+      ],
+      "center": [
+       1.3106432708623872,
+       0.917722298161674
+      ],
+      "direction": "ccw"
+     }
+    },
+    {
+     "role": "CUTTER",
+     "segment": {
+      "type": "line",
+      "start": [
+       1.3803678650605136,
+       0.12076653968827761
+      ],
+      "end": [
+       16.43500671930842,
+       1.4378767729118775
+      ]
+     }
+    },
+    {
+     "role": "HOLDER",
+     "segment": {
+      "type": "line",
+      "start": [
+       16.43500671930842,
+       1.4378767729118775
+      ],
+      "end": [
+       23.407272266109356,
+       1.4378767729118775
+      ]
+     }
+    },
+    {
+     "role": "HOLDER",
+     "segment": {
+      "type": "line",
+      "start": [
+       23.407272266109356,
+       1.4378767729118775
+      ],
+      "end": [
+       28.969395493197478,
+       7
+      ]
+     }
+    },
+    {
+     "role": "HOLDER",
+     "segment": {
+      "type": "line",
+      "start": [
+       28.969395493197478,
+       7
+      ],
+      "end": [
+       150,
+       7
+      ]
+     }
+    },
+    {
+     "role": "HOLDER",
+     "segment": {
+      "type": "line",
+      "start": [
+       150,
+       7
+      ],
+      "end": [
+       150,
+       32
+      ]
+     }
+    },
+    {
+     "role": "HOLDER",
+     "segment": {
+      "type": "line",
+      "start": [
+       150,
+       32
+      ],
+      "end": [
+       23.407272266109356,
+       32
+      ]
+     }
+    },
+    {
+     "role": "HOLDER",
+     "segment": {
+      "type": "line",
+      "start": [
+       23.407272266109356,
+       32
+      ],
+      "end": [
+       6.972265546800938,
+       14.952071716744973
+      ]
+     }
+    },
+    {
+     "role": "CUTTER",
+     "segment": {
+      "type": "line",
+      "start": [
+       6.972265546800938,
+       14.952071716744973
+      ],
+      "end": [
+       0.585597041233067,
+       1.2558169075542336
+      ]
+     }
+    }
+   ],
+   "material": "COATED_CARBIDE",
+   "kind": "holder",
+   "definition": {
+    "number": 1,
+    "name": "Example turning tool (iso holder)",
+    "material": "COATED_CARBIDE",
+    "insert_code": "TNMG 160408",
+    "holder_code": "PTLNR 2525 M16",
+    "clamping": "P",
+    "shape": "T",
+    "style": "L",
+    "clearance": "N",
+    "hand": "R",
+    "section": "2525",
+    "length": "M",
+    "insert_size": "16",
+    "tolerance": "M",
+    "insert_type": "G",
+    "thickness": "04",
+    "corner_radius": "08"
+   },
+   "origin": {
+    "library": "My library",
+    "name": "Example turning tool (iso holder)"
+   },
+   "library": null
+  }
+ ],
+ "contours": [
+  {
+   "format": 1,
+   "id": "bolt",
+   "name": "bolt",
+   "segments": [
+    {
+     "type": "line",
+     "start": [
+      0.0,
+      0.0
+     ],
+     "end": [
+      4.7499999995779945,
+      0.0
+     ]
+    },
+    {
+     "type": "line",
+     "start": [
+      4.7499999995779945,
+      0.0
+     ],
+     "end": [
+      6.299999999788992,
+      -1.549999999999983
+     ]
+    },
+    {
+     "type": "line",
+     "start": [
+      6.299999999788992,
+      -1.549999999999983
+     ],
+     "end": [
+      6.300000000211018,
+      -8.449999999999989
+     ]
+    },
+    {
+     "type": "line",
+     "start": [
+      6.300000000211018,
+      -8.449999999999989
+     ],
+     "end": [
+      4.750000000211008,
+      -10.0
+     ]
+    },
+    {
+     "type": "line",
+     "start": [
+      4.750000000211008,
+      -10.0
+     ],
+     "end": [
+      4.7499999997889955,
+      -25.44999999999999
+     ]
+    },
+    {
+     "type": "line",
+     "start": [
+      4.7499999997889955,
+      -25.44999999999999
+     ],
+     "end": [
+      6.299999999788989,
+      -26.999999999999986
+     ]
+    },
+    {
+     "type": "line",
+     "start": [
+      6.299999999788989,
+      -26.999999999999986
+     ],
+     "end": [
+      6.2999999999999945,
+      -124.0
+     ]
+    },
+    {
+     "type": "line",
+     "start": [
+      6.2999999999999945,
+      -124.0
+     ],
+     "end": [
+      8.799999999999999,
+      -124.0
+     ]
+    },
+    {
+     "type": "line",
+     "start": [
+      8.799999999999999,
+      -124.0
+     ],
+     "end": [
+      8.799999999999999,
+      -130.0
+     ]
+    },
+    {
+     "type": "line",
+     "start": [
+      8.799999999999999,
+      -130.0
+     ],
+     "end": [
+      12.45,
+      -130.0
+     ]
+    },
+    {
+     "type": "line",
+     "start": [
+      12.45,
+      -130.0
+     ],
+     "end": [
+      12.450000000092599,
+      -138.5
+     ]
+    },
+    {
+     "type": "line",
+     "start": [
+      12.450000000092599,
+      -138.5
+     ],
+     "end": [
+      6.350000000185198,
+      -152.4
+     ]
+    },
+    {
+     "type": "line",
+     "start": [
+      6.350000000185198,
+      -152.4
+     ],
+     "end": [
+      0.0,
+      -152.4
+     ]
+    }
+   ],
+   "definition": {
+    "start": [
+     0.0,
+     0.0
+    ],
+    "steps": [
+     {
+      "type": "line",
+      "end": [
+       4.7499999995779945,
+       0.0
+      ],
+      "corner": {
+       "kind": "none",
+       "size_mm": 0
+      }
+     },
+     {
+      "type": "line",
+      "end": [
+       6.299999999788992,
+       -1.549999999999983
+      ],
+      "corner": {
+       "kind": "none",
+       "size_mm": 0
+      }
+     },
+     {
+      "type": "line",
+      "end": [
+       6.300000000211018,
+       -8.449999999999989
+      ],
+      "corner": {
+       "kind": "none",
+       "size_mm": 0
+      }
+     },
+     {
+      "type": "line",
+      "end": [
+       4.750000000211008,
+       -10.0
+      ],
+      "corner": {
+       "kind": "none",
+       "size_mm": 0
+      }
+     },
+     {
+      "type": "line",
+      "end": [
+       4.7499999997889955,
+       -25.44999999999999
+      ],
+      "corner": {
+       "kind": "none",
+       "size_mm": 0
+      }
+     },
+     {
+      "type": "line",
+      "end": [
+       6.299999999788989,
+       -26.999999999999986
+      ],
+      "corner": {
+       "kind": "none",
+       "size_mm": 0
+      }
+     },
+     {
+      "type": "line",
+      "end": [
+       6.2999999999999945,
+       -124.0
+      ],
+      "corner": {
+       "kind": "none",
+       "size_mm": 0
+      }
+     },
+     {
+      "type": "line",
+      "end": [
+       8.799999999999999,
+       -124.0
+      ],
+      "corner": {
+       "kind": "none",
+       "size_mm": 0
+      }
+     },
+     {
+      "type": "line",
+      "end": [
+       8.799999999999999,
+       -130.0
+      ],
+      "corner": {
+       "kind": "none",
+       "size_mm": 0
+      }
+     },
+     {
+      "type": "line",
+      "end": [
+       12.45,
+       -130.0
+      ],
+      "corner": {
+       "kind": "none",
+       "size_mm": 0
+      }
+     },
+     {
+      "type": "line",
+      "end": [
+       12.450000000092599,
+       -138.5
+      ],
+      "corner": {
+       "kind": "none",
+       "size_mm": 0
+      }
+     },
+     {
+      "type": "line",
+      "end": [
+       6.350000000185198,
+       -152.4
+      ],
+      "corner": {
+       "kind": "none",
+       "size_mm": 0
+      }
+     },
+     {
+      "type": "line",
+      "end": [
+       0.0,
+       -152.4
+      ],
+      "corner": {
+       "kind": "none",
+       "size_mm": 0
+      }
+     }
+    ]
+   }
+  }
+ ],
+ "blocks": [
+  {
+   "type": "turning_contour",
+   "parameters": {
+    "block_id": "b1",
+    "tool_number": 1,
+    "spindle": {
+     "direction": "CLOCKWISE",
+     "mode": "CONSTANT_RPM",
+     "value": 1000,
+     "rpm_limit": null
+    },
+    "coolant": "NONE",
+    "name": "Turning along a contour",
+    "comment": "",
+    "contour_id": "bolt",
+    "side": "OUTSIDE",
+    "feed_mm_per_rev": 0.2,
+    "depth_of_cut_mm": 1,
+    "pass_direction": "ALONG_Z",
+    "finish_allowance_mm": 0.4,
+    "finish_pass": true,
+    "cutter_compensation": false,
+    "finish_feed_mm_per_rev": 0.1,
+    "finish_spindle_value": 1000,
+    "plunge_feed_mm_per_rev": 0.1,
+    "plunge_depth_of_cut_mm": 0.5,
+    "min_free_angle_deg": 5,
+    "style": "standard",
+    "z_plus_limit_mm": null,
+    "z_minus_limit_mm": -90.0,
+    "x_limit_radius_mm": null
+   }
+  }
+ ]
+}

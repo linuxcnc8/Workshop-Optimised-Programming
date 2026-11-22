@@ -31,6 +31,7 @@ class WantedJob:
     start_z: float  # the front of the block's material
     chuck_z: float | None = None  # the clamping plane: a wall
     grid_from: tuple[float, float] | None = None  # the radius and the front (Z) of the raw bar, where the levels are laid out from; None: the material
+    low_stock: tuple[Loop, ...] | None = None  # the material the low ends of the lines are looked at in (beyond a Z- limit); None: the stock
 
 
 def wanted_plan(stock: list[Loop], job: WantedJob, cleaned_stock: Callable[[], list[Loop]] | None = None) -> WantedPlan:
@@ -83,5 +84,6 @@ def wanted_plan(stock: list[Loop], job: WantedJob, cleaned_stock: Callable[[], l
         reach = end_z + allowance  # ... to the end of the contour, not to the back of the material that stands now
         deeper = surface - reach > tol
     positions = [p for p in levels(origin, reach, critical, depth_of_cut) if sign * (surface - p) > tol] if deeper else []
-    lines = make_lines(loops, stock, positions, critical, surface, axis, free_side, depth_of_cut if plunge_depth is None else plunge_depth, job.chuck_z)
+    lines = make_lines(loops, stock, positions, critical, surface, axis, free_side, depth_of_cut if plunge_depth is None else plunge_depth, job.chuck_z,
+                       None if job.low_stock is None else list(job.low_stock))
     return WantedPlan(tuple(loops), tuple(lines))
