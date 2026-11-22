@@ -548,6 +548,7 @@
         "depth_of_cut_mm": 1,
         "pass_direction": "ALONG_Z",
         "finish_allowance_mm": 0.2,
+        "finish_allowance_z_mm": null,
         "finish_pass": true,
         "cutter_compensation": false,
         "finish_feed_mm_per_rev": 0.1,

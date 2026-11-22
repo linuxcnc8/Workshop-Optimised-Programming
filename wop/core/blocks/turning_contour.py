@@ -14,7 +14,8 @@ from dataclasses import dataclass, replace
 
 from ..geometry.chains import ChainError, Loop, box_of, loop_area, loops_box, region_of_loops
 from ..analytic.cut_operations import FinishingJob, cut_operations, finishing_pass_and_rest
-from ..analytic.finish_modes import PlungeMode
+from ..analytic.finish_modes import PlungeMode, no_plunge
+from ..analytic.allowance_xz import pushed, uniform_part
 from ..analytic.cut_list import RoughingCuts
 from ..analytic.roughing_cuts import RoughingJob, left_standing, roughing_cuts
 from ..analytic.material import chains_of_region, is_uncut, stock_chains
@@ -64,6 +65,13 @@ class PlanInputs:
     ran_on: bool = False  # `path` ends with a wall added out to the material (not part of the contour)
 
 
+def _back_on_itself(face: Segment, wall: Segment) -> bool:
+    """True when the wall at the end runs back along the last piece (both across X at the same Z, the other way)."""
+    tol = GEOMETRY_TOLERANCE_MM
+    across = all(isinstance(s, LineSegment) and abs(s.start.z - s.end.z) <= tol for s in (face, wall))
+    return across and (face.end.x - face.start.x) * (wall.end.x - wall.start.x) < 0
+
+
 @BLOCK_TYPES.register
 @dataclass(frozen=True, kw_only=True)
 class ContourTurningBlock(Block):
@@ -74,7 +82,8 @@ class ContourTurningBlock(Block):
     feed_mm_per_rev: float
     depth_of_cut_mm: float
     pass_direction: PassDirection = PassDirection.ALONG_Z
-    finish_allowance_mm: float = 0
+    finish_allowance_mm: float = 0  # the finishing allowance in X (a radius: shown as a diameter in diameter mode, B34)
+    finish_allowance_z_mm: float | None = None  # the finishing allowance in Z; None: the same as in X (per side)
     finish_pass: bool = True  # False: only roughing; what the allowance leaves stays for a later block
     cutter_compensation: bool = False  # the finishing pass is a compensated contour: lead-in, lead-out and the contour points for a post with G41 / G42
     finish_feed_mm_per_rev: float | None = None
@@ -115,7 +124,7 @@ class ContourTurningBlock(Block):
         """The contour comes right after the name, then what and where, then the cutting data."""
         return (
             "name", "style", "contour_id", "side", "pass_direction", "tool_number", "spindle", "feed_mm_per_rev",
-            "depth_of_cut_mm", "finish_allowance_mm", "finish_pass", "finish_feed_mm_per_rev", "finish_spindle_value", "cutter_compensation", "plunge_mode",
+            "depth_of_cut_mm", "finish_allowance_mm", "finish_allowance_z_mm", "finish_pass", "finish_feed_mm_per_rev", "finish_spindle_value", "cutter_compensation", "plunge_mode",
             "plunge_feed_mm_per_rev", "plunge_depth_of_cut_mm", "min_free_angle_deg",
             "z_plus_limit_mm", "z_minus_limit_mm", "x_limit_radius_mm", "coolant",
         )
@@ -161,7 +170,8 @@ class ContourTurningBlock(Block):
 
     def form_labels(self) -> dict[str, str]:
         return {
-            "finish_allowance_mm": "Finishing allowance",
+            "finish_allowance_mm": "Finishing allowance, X radius",
+            "finish_allowance_z_mm": "Finishing allowance, Z",
             "finish_feed_mm_per_rev": "Finishing feed",
             "plunge_mode": "Plunge mode (finishing)",
             "plunge_feed_mm_per_rev": "Plunge feed",
@@ -175,7 +185,7 @@ class ContourTurningBlock(Block):
     def __post_init__(self) -> None:
         if self.feed_mm_per_rev <= 0 or self.depth_of_cut_mm <= 0:
             raise BlockError("feed and depth of cut must be greater than zero")
-        if self.finish_allowance_mm < 0:
+        if self.finish_allowance_mm < 0 or (self.finish_allowance_z_mm is not None and self.finish_allowance_z_mm < 0):
             raise BlockError("finishing allowance must not be negative")
         if self.finish_feed_mm_per_rev is not None and self.finish_feed_mm_per_rev <= 0:
             raise BlockError("finishing feed must be greater than zero")
@@ -282,22 +292,48 @@ class ContourTurningBlock(Block):
         """True when the contour (without a wall run on to the material) ends at the Z- limit: the limit cut it there."""
         return self.z_minus_limit_mm is not None and bool(path) and abs(path[-1].end.z - self.z_minus_limit_mm) <= GEOMETRY_TOLERANCE_MM
 
+    @property
+    def allowance_z_mm(self) -> float:
+        """The finishing allowance in Z (the X one when the field is empty)."""
+        return self.finish_allowance_mm if self.finish_allowance_z_mm is None else self.finish_allowance_z_mm
+
+    @property
+    def _offset_allowance(self) -> float:
+        """The allowance the planner offsets the contour by; the rest of the larger one is a push of the contour (`allowance_xz.py`)."""
+        return uniform_part(self.finish_allowance_mm, self.allowance_z_mm)
+
+    def form_radius_fields(self) -> frozenset[str]:
+        return frozenset({"finish_allowance_mm"})  # typed as a diameter in diameter mode (the user: "i want X in dia")
+
+    def form_placeholders(self) -> dict[str, str]:
+        return {"finish_allowance_z_mm": f"same as X: {self.finish_allowance_mm:g} per side"}
+
     def _roughing_inputs(self, context: BlockContext) -> PlanInputs | None:
-        """The inputs of the roughing: at a Z- limit the finishing allowance is not left standing on the limit (the limit is no wall of the
-        part, the material behind it is the next block's): the path runs on past the limit by the allowance and the clearance, and the limit
-        box (`_limited_loops`) ends the cuts at the limit itself."""
+        """The inputs of the roughing: the contour the roughing works to.
+        - At a Z- limit the finishing allowance is not left standing on the limit (the limit is no wall of the part, the material behind it
+          is the next block's): the path runs on past the limit by the Z allowance, and the limit box (`_limited_loops`) ends the cuts at the
+          limit itself.
+        - Plunge mode "don't plunge": the contour never goes towards the part on its way (necks and grooves are not roughed).
+        - Different allowances in X and Z: the contour pushed along the axis of the larger one by the difference (`allowance_xz.pushed`)."""
         inputs = self._analytic_inputs(context)
-        if inputs is None or self.z_minus_limit_mm is None or self.finish_allowance_mm <= GEOMETRY_TOLERANCE_MM:
-            return inputs
-        body = inputs.path[:-1] if inputs.ran_on else list(inputs.path)
-        if not self._stopped_by_z_minus(body):
-            return inputs
-        end = body[-1].end
-        beyond = Point(end.x, self.z_minus_limit_mm - self.finish_allowance_mm)
-        run_on = [LineSegment(end, beyond)]
-        if inputs.ran_on:
-            run_on.append(LineSegment(beyond, Point(inputs.path[-1].end.x, beyond.z)))
-        return replace(inputs, path=[*body, *run_on])
+        if inputs is None:
+            return None
+        path = list(inputs.path)
+        body = path[:-1] if inputs.ran_on else path
+        if self.allowance_z_mm > GEOMETRY_TOLERANCE_MM and self._stopped_by_z_minus(body):
+            end = body[-1].end
+            beyond = Point(end.x, self.z_minus_limit_mm - self.allowance_z_mm)
+            path = [*body, LineSegment(end, beyond)] + ([LineSegment(beyond, Point(path[-1].end.x, beyond.z))] if inputs.ran_on else [])
+        if self.plunge_mode is PlungeMode.NO_PLUNGE:
+            path = [segment for _index, segment in no_plunge(list(enumerate(path)), inputs.outside)]
+        if inputs.ran_on and len(path) > 1 and _back_on_itself(path[-2], path[-1]):
+            # the contour ends with a face towards the part and the wall runs back up it (a face down to the centre, the bar behind it):
+            # pushed apart in Z the two would cross and open the bar, so they keep the plain allowance and only the contour before is pushed
+            body = pushed(path[:-2], self.finish_allowance_mm, self.allowance_z_mm, inputs.outside) if len(path) > 2 else []
+            tail = path[-2:]
+            joint = [LineSegment(body[-1].end, tail[0].start)] if body and not body[-1].end.is_close(tail[0].start) else []
+            return replace(inputs, path=[*body, *joint, *tail])
+        return replace(inputs, path=pushed(path, self.finish_allowance_mm, self.allowance_z_mm, inputs.outside))
 
     def wanted_plan(self, context: BlockContext):
         inputs = self._roughing_inputs(context)
@@ -305,7 +341,7 @@ class ContourTurningBlock(Block):
             return None
         raw = context.raw_part
         job = WantedJob(
-            path=inputs.path, outside=True, direction=inputs.direction, allowance=self.finish_allowance_mm, depth_of_cut=self.depth_of_cut_mm,
+            path=inputs.path, outside=True, direction=inputs.direction, allowance=self._offset_allowance, depth_of_cut=self.depth_of_cut_mm,
             plunge_depth=self.plunge_depth_of_cut_mm, outer=inputs.outer, start_z=inputs.start_z, chuck_z=raw.clamp_z_mm,
             grid_from=(raw.outer_radius_mm, raw.front_z_mm),
             low_stock=tuple(inputs.stock) if self.z_minus_limit_mm is not None and inputs.direction is LineDirection.ALONG_Z else None,
@@ -335,7 +371,7 @@ class ContourTurningBlock(Block):
         clearance = context.safety.clearance_mm
         begin, finish = self._block_ends(context, inputs.start_z)
         job = RoughingJob(
-            path=path, tool=context.tool, outside=outside, allowance=self.finish_allowance_mm, clearance_deg=self.min_free_angle_deg,
+            path=path, tool=context.tool, outside=outside, allowance=self._offset_allowance, clearance_deg=self.min_free_angle_deg,
             outer=inputs.outer,
             inner=min(bounds.min_x, path[0].start.x) - clearance if outside else max(bounds.max_x, max(box_of(s)[2] for s in path)) + clearance,
             far_z=context.raw_part.clamp_z_mm - clearance, clearance=clearance, begin=begin, finish=finish,

@@ -354,6 +354,14 @@ def form_for(obj: Any, context: FormContext = FormContext()) -> list[FieldSpec]:
     computed = getattr(obj, "form_computed_fields", None)  # fields worked out from others that can be typed too: name -> label
     if callable(computed):
         specs += [dataclasses.replace(_float_spec(name, False, (name,), label, ""), computed=True) for name, label in computed().items()]
+    radius_fields = getattr(obj, "form_radius_fields", None)  # sizes kept as a radius that are typed as a diameter in diameter mode
+    if callable(radius_fields):
+        as_radius = radius_fields()
+        specs = [dataclasses.replace(s, is_radius=True) if len(s.path) == 1 and s.path[0] in as_radius else s for s in specs]
+    placeholders = getattr(obj, "form_placeholders", None)  # the grey text of an empty field: name -> text
+    if callable(placeholders):
+        texts = placeholders()
+        specs = [dataclasses.replace(s, placeholder=texts[s.path[0]]) if len(s.path) == 1 and s.path[0] in texts else s for s in specs]
     specs = _with_function_fields(obj, specs, context)
     shown = getattr(obj, "form_fields", None)  # an object may show only the fields that matter for its current values
     if callable(shown):

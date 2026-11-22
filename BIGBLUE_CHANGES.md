@@ -24,7 +24,7 @@ commit (or two), so commits can be picked one by one. `git log 82a637d..bigblue-
 | `76e1fc4` | Fix: File > New / Open / Undo crashed with "tool T1 is not defined" when the Tools view had a tool chosen | — |
 | `3f7e0d9`, `57b6522`, `ef01747` | Requirement status only ("tried by the user") | — |
 | branch `step-import` | STEP part import for a turning contour (turned outline, no CAD library) | C17 |
-| branch `toolpath-limits` | Toolpath limits: Z+ / Z- / X on a turning contour block, X on a facing block, dashed in the picture; fixes at the Z limits; plunge mode of the finishing pass | B30-B33 |
+| branch `toolpath-limits` | Toolpath limits: Z+ / Z- / X on a turning contour block, X on a facing block, dashed in the picture; fixes at the Z limits; plunge mode; finishing allowance X / Z | B30-B34 |
 
 About 52 files, +2100 / -130 lines, of which more than half are tests, docs and the manual. No new library. None of the
 mypyc-compiled modules (`wop/core/compiled.py`) were touched. Only run on Linux (Python 3.13, PySide6, offscreen Qt
@@ -240,6 +240,20 @@ holder going down a 45-degree back chamfer and down a face to the centre with th
   `Region.offset(-r)` fails when an arc of radius r would shrink to a point, so the outline is shrunk by r - 0.001 mm.
 - Don't plunge: the tool path held at the greatest height so far.
 - Both refuse cutter compensation; what they leave is shown and noted. The plain turning block keeps free.
+- Don't plunge applies to the roughing too (the user: "it would be nice to apply it to roughing also"): the roughing
+  contour is the same held-height contour (`_roughing_inputs`).
+
+### 12. Finishing allowance X / Z (branch `toolpath-limits`)
+
+From ECAM ("Finishing Allowance X" and "Z"). Contour block only (the user: "just contour cycle for now"; grooving undecided).
+- `finish_allowance_mm` stays the X allowance (old projects unchanged), kept as a radius but typed as a diameter in
+  diameter mode (the user: "i want X in dia") through a new generic form hook `form_radius_fields`. New
+  `finish_allowance_z_mm` (None: as X); its empty field shows "same as X: .. per side" (new hook `form_placeholders`).
+- `wop/core/analytic/allowance_xz.py`: part + disc(min) + line along the axis of the larger (Minkowski sum). The roughing
+  contour is pushed along that axis by the difference; the planner offsets by the smaller value as before, so equal
+  values give exactly the old plan. Slopes get a value between the two. A face down to the centre and the run-on wall
+  back up it are left unpushed (they would cross).
+- Tests: `tests/test_allowance_xz.py`. Not tried by the user yet.
 - Tests: `tests/test_plunge_mode.py` (the user's bolt). Not tried by the user yet.
 
 ## New generic form hooks

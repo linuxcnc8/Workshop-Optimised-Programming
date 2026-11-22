@@ -65,6 +65,11 @@ class PlungeModeTests(unittest.TestCase):
         self.assertGreaterEqual(min(op.end.x for op in moves), 6.3 - TOL)  # straight over the neck at the diameter
         self.assertEqual(self.straight[1], [])
 
+    def test_dont_plunge_roughs_nothing_in_the_neck_either(self):
+        # the user, 2026-11-23: "it would be nice to apply it to roughing also"
+        moves = [op for op in self.straight[0].operations if isinstance(op, (LinearMove, ArcMove))]
+        self.assertFalse([op for op in moves if -24 < op.end.z < -12 and op.end.x < 6.3 - TOL])
+
     def test_a_plunge_mode_needs_cutter_compensation_off(self):
         block = load_project(PROJECT).program.blocks[0]
         with self.assertRaises(BlockError):
