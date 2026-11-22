@@ -1,4 +1,4 @@
-"""Relations an imported shape gets by itself (the user, 2026-11-23: "fix the step file import with automatic constraints"), as a CAD
+"""Relations an imported shape (STEP part, DXF drawing) gets by itself (the user, 2026-11-23: "fix the step file import with automatic constraints"; "add it to dxf too"), as a CAD
 program adds them: so a dimension or a drag keeps the shape. An imported sketch had no relation at all: a dimension tipped the diameters and
 faces and broke the fillets.
 
@@ -6,7 +6,7 @@ faces and broke the fillets.
 - a point on the centre line lies on the spindle axis (a line on the axis gets that for both ends instead of horizontal), and a point at Z0
   on it is held at the origin (straight above it), so a dimension does not slide the whole part along Z;
 - where a line and an arc, or two arcs, meet with the same direction (within `AUTO_TANGENT_SINE`), they are tangent.
-Nothing is dimensioned: the user dimensions what he wants to change.
+The axis and origin relations only for a turning contour (`turning`). Nothing is dimensioned (the user, 2026-11-23: "leave it as relations only").
 """
 
 from __future__ import annotations
@@ -17,7 +17,7 @@ from .constants import AUTO_STRAIGHT_MM, AUTO_TANGENT_SINE, AXIS_LINE, ORIGIN
 from .model import Sketch, SketchArc, SketchError, SketchLine
 
 
-def add_auto_relations(sketch: Sketch) -> int:
+def add_auto_relations(sketch: Sketch, turning: bool = True) -> int:
     """Add the relations (see the top) to the sketch; the number added."""
     added = 0
 
@@ -29,7 +29,7 @@ def add_auto_relations(sketch: Sketch) -> int:
         except SketchError:
             pass  # already there, or not valid for these (a point that is an end of the line)
 
-    on_axis = {pid for pid, point in sketch.points.items() if abs(point.x) <= AUTO_STRAIGHT_MM}
+    on_axis = {pid for pid, point in sketch.points.items() if abs(point.x) <= AUTO_STRAIGHT_MM} if turning else set()
     lines = [line for line in sketch.lines.values() if not line.construction]
     arcs = [arc for arc in sketch.arcs.values() if not arc.construction and arc.start != arc.end]
     for line in lines:

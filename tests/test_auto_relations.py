@@ -51,6 +51,27 @@ class AutoRelationTests(unittest.TestCase):
         self.assertTrue(session.sketch.constraints)
         self.assertTrue(any("relations were added" in message for message in messages))
 
+    def test_the_dxf_import_of_a_turning_contour_adds_them(self):
+        from unittest import mock
+        from wop.core.dxf_contour import DxfAxes
+        from wop.core.dxf_contour import DxfDrawing, DxfLine
+        from wop.ui.app_model import AppModel
+        model = AppModel()
+        session = SketchSession(target=model.contour_sketch_target(model.new_contour()))
+        drawing = DxfDrawing((DxfLine((0, 0), (0, 8)), DxfLine((0, 8), (-20, 8)), DxfLine((-20, 8), (-20, 12)), DxfLine((-20, 12), (-30, 12))), (), ())
+        with mock.patch("wop.ui.sketch_modify.read_dxf", return_value=drawing):
+            messages = session.load_drawing(Path("part.dxf"), DxfAxes.HORIZONTAL)
+        kinds = sorted(c.kind for c in session.sketch.constraints.values())
+        self.assertIn("horizontal", kinds)
+        self.assertIn("vertical", kinds)
+        self.assertIn("point_on_line", kinds)
+        self.assertTrue(any("relations were added" in message for message in messages))
+
+    def test_a_shape_that_is_no_turning_contour_gets_no_axis_relation(self):
+        sketch = shaft()
+        add_auto_relations(sketch, turning=False)
+        self.assertNotIn("point_on_line", [c.kind for c in sketch.constraints.values()])
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -257,11 +257,13 @@ class SketchModifyMixin:
                 imported = shape_from_drawing(drawing)
                 definition = replace(imported.definition, points=imported.points)
             drawn = sketch_from_contour(build_contour("import", "import", definition))
+            related = add_auto_relations(drawn, self.mode is TURNING)  # as for a STEP part: a dimension keeps the shape
+            solve(drawn)
         except (ContourError, SketchError, ValueError) as error:
             self.message = str(error)
             self._notify()
             return []
-        return self._replace_sketch(drawn, imported.messages)
+        return self._replace_sketch(drawn, (*imported.messages, f"{related} relations were added (horizontal, vertical, tangent{', on the axis' if self.mode is TURNING else ''})"))
 
     def _replace_sketch(self, drawn, messages) -> list[str]:
         ok = self._edit(lambda: setattr(self, "sketch", drawn))

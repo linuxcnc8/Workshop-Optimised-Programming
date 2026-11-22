@@ -209,7 +209,7 @@ If you have the shape as a drawing from a CAD program, the button \emph{Import} 
 
 For a contour of a part WOP asks \emph{How does the part lie in the drawing?}: with the spindle axis horizontal (drawing X is Z, drawing Y is the radius), or vertical (drawing Y is Z, drawing X is the radius). For tool and workholding shapes, the drawing is taken as it is, with the spindle axis horizontal; nothing is moved, turned or mirrored, and the origin of the drawing stays the origin. A \emph{point} with a \emph{text} next to it in the drawing becomes a named point.
 
-WOP reads lines, arcs and polylines (a polyline is split into its lines and arcs). It does not read circles, ellipses, splines or dimensions of the drawing. After the import, a message tells you what was taken and what was left out. The imported shape is a normal sketch: you can dimension it and change it.
+WOP reads lines, arcs and polylines (a polyline is split into its lines and arcs). It does not read circles, ellipses, splines or dimensions of the drawing. After the import, a message tells you what was taken and what was left out. The imported shape is a normal sketch: you can dimension it and change it. It comes with relations, as from a STEP part (Section~\ref{sec:sketch:step}): horizontal and vertical lines and tangent joins, and for a part contour points on the centre line and the origin.
 
 \section{Importing a STEP part}\label{sec:sketch:step}
 

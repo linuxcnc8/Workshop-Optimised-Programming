@@ -112,7 +112,7 @@ Rules for this list:
 | C4 | Ellipses and B-splines as a polyline | An ellipse and a B-spline convert within the tolerance. | Open: named as ignored in a DXF import |
 | C6 | DXF import in the sketch editor | A DXF with lines and arcs imports; unsupported entities are listed. | Done: tried with one real drawing |
 | C17 | STEP part import for a turning contour | The turned outline of a STEP solid (the outside or a bore, front at the end picked) imports as lines and arcs without a CAD library; faces that are not round about the axis are named (`tests/test_step_import.py`). | Done: 8 real parts (SolidWorks, Autodesk) import; not yet tried by the user; a revolved spline comes in as short lines |
-| C18 | A STEP import gets relations by itself: horizontal, vertical, tangent, on the axis, the Z0 point at the origin | The imported sketch solves without moving and without repeated relations; a dimension keeps a diameter horizontal (`tests/test_auto_relations.py`). | Done, not tried by the user |
+| C18 | A STEP or DXF import gets relations by itself: horizontal, vertical, tangent, on the axis, the Z0 point at the origin | The imported sketch solves without moving and without repeated relations; a dimension keeps a diameter horizontal (`tests/test_auto_relations.py`). | Done, not tried by the user |
 | C7 | One shape editor for contour, tool and workholding | `tests/test_sketch_targets.py` | Done |
 | N7 | Mirror, rotate by 90 degrees, move and offset of shapes | Each change leaves a shape that solves. | Done, not tried |
 
