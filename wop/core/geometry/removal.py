@@ -16,12 +16,12 @@ from collections.abc import Sequence
 
 import math
 
-from ..constants import CHAIN_SNAP_MM, CUT_END_SNAP_MM, CUT_JITTER_MM, CUT_TOLERANCE_FACTORS, GEOMETRY_TOLERANCE_MM
+from ..constants import CHAIN_SNAP_MM, CUT_END_SNAP_MM, CUT_JITTER_MM, CUT_NEEDLE_AREA_MM2, CUT_TOLERANCE_FACTORS, GEOMETRY_TOLERANCE_MM
 from .primitives import ArcSegment, LineSegment, Point, Segment
 from .intersect import fraction_along
 from .distance import distance_to_segment
 from .arc_sweep import arc_along_arc, line_along_arc
-from .chains import ChainError, Loop, closed_loop, oriented, polygon_loop, reversed_segment, split_at, split_regions
+from .chains import ChainError, Loop, closed_loop, loop_area, oriented, polygon_loop, reversed_segment, split_at, split_regions
 from .tidy import tidied
 from .tip_sweep import swept_tip, tip_hull
 from .tool_edges import ToolLoop, placed, translated, translated_segment
@@ -93,6 +93,8 @@ def _cut_once(
         for strip in [swept] if swept is not None else strips_along(tool, piece):
             strip = _shifted(strip, *shift) if shift != (0, 0) else strip
             taken, left = split_regions(left, [strip], tolerance)
+            left = [loop for loop in left if abs(loop_area(loop)) > CUT_NEEDLE_AREA_MM2]  # a loop with no area (a line out and back) is no
+            # material, and each split would double it (the user's project, 2026-11-23: 31 of them grew to four million pieces)
             removed += taken
             if not left:
                 return left, removed

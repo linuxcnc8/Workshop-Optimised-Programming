@@ -238,7 +238,10 @@ class ViewsMixin:
         bar in a small bore), so the far side of the part is in the picture and the scale does not change step by step."""
         lowest: float | None = None
         for block_plan in plan.blocks:
-            prepared = prepare_tool(self.program.equipped_tool(block_plan.block.tool_number))
+            try:
+                prepared = prepare_tool(self.program.equipped_tool(block_plan.block.tool_number))
+            except BlockError:  # the plan is of the program before the last change: its tool may be gone (the user, 2026-11-23)
+                continue
             if prepared.mirror is None:
                 continue
             ends = [getattr(op, "end", None) for op in block_plan.operations]

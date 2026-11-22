@@ -516,6 +516,7 @@ MIDPOINT_FRACTION = 0.5  # the middle of a piece of a chain: where it is tested 
 WANTED_SPAN_MIN_MM = 0.01  # GUESS: a stretch of a roughing line shorter than this is not a line (the sliver limit of the analytic planner; the user's roughing accuracy is 0.01)
 TIP_WALK_MAX_PIECES = 200  # a walk of the tool tip along the part is cut off after this many pieces (a safeguard against a walk that goes round)
 CUT_TOLERANCE_FACTORS = (0.05, 0.005)  # GUESS: when a cut cannot be worked out with the snap distance (a sliver of the material thinner than it, between two arcs that nearly lie on each other), it is tried again with the tolerance times these factors
+CUT_NEEDLE_AREA_MM2 = 1e-9  # a loop of the material with less area than this (a line out and back) is dropped after every strip of a cut
 MIN_LOOP_PIECES = 3  # a loop with fewer pieces than this is not tidied (a circle of two arcs stays)
 DIP_MIN_AREA_MM2 = 0.01  # GUESS: a line, or a pass along the contour under a line, that takes less material than this is dropped (the user's roughing accuracy is 0.01 mm)
 RAPID_CLEARANCE_TOLERANCE_MM = 0.05  # the user's rule X12 (2026-10-22): a rapid may come this much closer to the material than the clearance (the test of the replay)
