@@ -147,6 +147,17 @@ class StepPictureTests(unittest.TestCase):
         self.assertLess(early.count("<polyline"), whole.count("<polyline"))
         self.assertGreater(stepper.count, 2)
 
+    def test_a_step_shows_the_whole_block_faintly_and_not_the_blocks_before(self):
+        # the user, 2026-11-23: at move 1 nothing could be seen, and choosing the second block showed the moves of the first
+        from wop.ui.svg_preview import block_color
+        from wop.ui import ui_constants as ui
+        stepper = self.model.stepper()
+        first_of_second = next(i for i in range(stepper.count) if self.model.step_view(i)[0] == 1)
+        picture = self.model.picture(step=first_of_second, with_legend=False)
+        self.assertIn(f'opacity="{ui.STEP_AHEAD_OPACITY}"', picture)
+        self.assertNotIn(f'stroke="{block_color(self.model.colors, 0)}"', picture)
+        self.assertIn(f'stroke="{block_color(self.model.colors, 1)}"', picture)
+
     def test_a_step_in_3d_has_the_tool_too(self):
         with_tool = self.model.scene3d(step=1, steps_per_turn=24)
         self.assertTrue(with_tool.fills)

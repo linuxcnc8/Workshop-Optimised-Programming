@@ -24,6 +24,7 @@ commit (or two), so commits can be picked one by one. `git log 82a637d..bigblue-
 | `76e1fc4` | Fix: File > New / Open / Undo crashed with "tool T1 is not defined" when the Tools view had a tool chosen | — |
 | `3f7e0d9`, `57b6522`, `ef01747` | Requirement status only ("tried by the user") | — |
 | branch `step-import` | STEP part import for a turning contour (turned outline, no CAD library) | C17 |
+| branch `toolpath-limits` (step) | Step through: the moves of the block still to come are drawn faintly, the blocks before show only their material (`svg_preview._path_elements`, 2D only; the user found the old picture empty at move 1) | — |
 | branch `toolpath-limits` (fix) | Fix: a cut doubled loops of no area with every strip (the user's left-hand VNMG project: minutes and gigabytes while planning); the picture no longer fails on a tool that a newer change removed | — |
 | branch `toolpath-limits` | Toolpath limits: Z+ / Z- / X on a turning contour block, X on a facing block, dashed in the picture; fixes at the Z limits; plunge mode; finishing allowance X / Z | B30-B34 |
 

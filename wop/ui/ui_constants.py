@@ -18,6 +18,7 @@ LIMIT_LINE_DASH = "3 3"
 AXIS_COLOR = "#bbbbbb"
 RAPID_COLOR = "#e07000"
 RAPID_DASH = "6 4"
+STEP_AHEAD_OPACITY = 0.3  # stepping through: the moves of the block still to come are drawn this faint
 # Cutting moves get one colour per block, repeating.
 BLOCK_COLORS = ("#1f5fbf", "#1f9f4f", "#9f1fbf", "#bf1f5f", "#4f4f4f", "#0f9f9f")
 

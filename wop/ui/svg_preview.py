@@ -64,7 +64,8 @@ class Legend:
 class StepView:
     """What the picture shows when stepping through (V2): the material at that moment and the tool.
 
-    The moves of the last shown block are drawn only up to `moves_done` (the moves count as in `StepFrame.move_number`).
+    The moves of the last shown block are drawn up to `moves_done` (the moves count as in `StepFrame.move_number`) and faintly after it;
+    the blocks before it show only the material they cut.
     """
 
     material: Region
@@ -297,12 +298,17 @@ def _path_elements(
     for block_plan in shown:
         color = block_color(colors, block_plan.program_index)
         label_placed = False
+        if step and block_plan is not shown[-1]:  # stepping: the blocks before show only what they cut, not their moves (the user, 2026-11-23)
+            ends = [m.end for op in block_plan.operations for m in plain_moves(op) if isinstance(getattr(m, "end", None), Point)]
+            position = ends[-1] if ends else position
+            continue
         limit = step.moves_done if step and block_plan is shown[-1] else None
         drawn = 0
+        faint = ""
         for operation in (m for op in block_plan.operations for m in plain_moves(op)):
             if limit is not None and isinstance(operation, (Rapid, LinearMove, ArcMove)):
-                if drawn >= limit:
-                    break
+                if drawn >= limit:  # the moves still to come: drawn faintly, so the whole path of the block is seen from its first move
+                    faint = f' opacity="{ui.STEP_AHEAD_OPACITY}"'
                 drawn += 1
             if isinstance(operation, Rapid):
                 if position is not None and rapids:
@@ -311,7 +317,7 @@ def _path_elements(
                     elements.append(
                         f'<line x1="{_fmt(x1)}" y1="{_fmt(y1)}" x2="{_fmt(x2)}" y2="{_fmt(y2)}" '
                         f'stroke="{colors.rapid if order_colors is None else colors.key_text}" stroke-dasharray="{view.dash(ui.RAPID_DASH)}" '
-                        f'stroke-width="{view.width(ui.LINE_WIDTH_PX)}"/>'
+                        f'stroke-width="{view.width(ui.LINE_WIDTH_PX)}"{faint}/>'
                     )
                 position = operation.end
             elif isinstance(operation, (LinearMove, ArcMove)) and position is not None:
@@ -325,8 +331,8 @@ def _path_elements(
                     color = mix_colors(order_colors[0], order_colors[1], cut_number / max(cutting - 1, 1))
                     cut_number += 1
                 elements.append(
-                    '<polyline fill="none" stroke="%s" stroke-width="%s" points="%s"/>'
-                    % (color, view.width(ui.LINE_WIDTH_PX), " ".join(f"{_fmt(x)},{_fmt(y)}" for x, y in coordinates))
+                    '<polyline fill="none" stroke="%s" stroke-width="%s" points="%s"%s/>'
+                    % (color, view.width(ui.LINE_WIDTH_PX), " ".join(f"{_fmt(x)},{_fmt(y)}" for x, y in coordinates), faint)
                 )
                 if not label_placed and order_colors is None:
                     x, y = coordinates[0]
