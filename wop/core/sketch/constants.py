@@ -28,3 +28,5 @@ POINT_TOLERANCE = 1e-6  # two points closer than this (mm) are the same point
 SAME_DECIMALS = 6  # decimals when two outlines are compared piece by piece
 MIRROR_KINDS = ("symmetric", "symmetric_axis_z", "symmetric_axis_x")  # the relations that make a mirror point
 PARALLEL_SINE = 0.035  # two lines whose directions differ by less than this (sine, about 2 degrees) count as parallel
+AUTO_STRAIGHT_MM = 1e-4  # an imported line whose ends differ by less than this in X (in Z) is made horizontal (vertical); an imported point this near the axis lies on it
+AUTO_TANGENT_SINE = 1e-3  # an imported line and arc (or two arcs) whose directions at the shared point differ by less than this (sine) are made tangent

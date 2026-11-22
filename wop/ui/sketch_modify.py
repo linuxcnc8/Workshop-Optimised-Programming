@@ -22,6 +22,8 @@ from ..core.geometry.intersect import intersections
 from ..core.sketch.modes import TURNING, sketch_from_contour
 from ..core.sketch.mirror import AXIS_Z, mirror_pieces
 from ..core.sketch.model import SketchError
+from ..core.sketch.auto_relations import add_auto_relations
+from ..core.sketch.solver import solve
 from ..core.geometry.distance import distance_to_segment
 from ..core.sketch.pick import piece_id
 from ..core.sketch.trim import trim_piece
@@ -284,11 +286,13 @@ class SketchModifyMixin:
         try:
             imported = contour_from_profile(profile, bore)
             drawn = sketch_from_contour(build_contour("import", "import", imported.definition))
+            related = add_auto_relations(drawn)  # horizontal, vertical, tangent, on the axis: a dimension keeps the shape
+            solve(drawn)
         except (ContourError, SketchError, ValueError) as error:
             self.message = str(error)
             self._notify()
             return []
-        return self._replace_sketch(drawn, imported.messages)
+        return self._replace_sketch(drawn, (*imported.messages, f"{related} relations were added (horizontal, vertical, tangent, on the axis)"))
 
     # --- trim ---------------------------------------------------------------------------------------------------------
 
