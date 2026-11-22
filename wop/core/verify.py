@@ -19,7 +19,7 @@ import math
 import numpy as np
 
 from .constants import (
-    COLLISION_PENETRATION_TOLERANCE_MM, GEOMETRY_TOLERANCE_MM, HOLDER_BAND_MM, HOLDER_NORMAL_PROBE_MM, PATH_CHECK_STEP_MM, RAPID_SKIP_MARGIN_MM, RAPID_SKIP_UNLIMITED,
+    ARC_CHECK_MIN_RADIUS_MM, ARC_CHECK_SAGITTA_MM, COLLISION_PENETRATION_TOLERANCE_MM, GEOMETRY_TOLERANCE_MM, HOLDER_BAND_MM, HOLDER_NORMAL_PROBE_MM, PATH_CHECK_STEP_MM, RAPID_SKIP_MARGIN_MM, RAPID_SKIP_UNLIMITED,
     SHRUNK_NEAR_MARGIN_FACTOR, SWEEP_CONTACT_SEARCH_STEPS, SWEEP_MIN_LENGTH_MM,
     WORKHOLDING_NOTE_TOLERANCE_MM,
 )
@@ -351,6 +351,29 @@ def _straight_length(position: Point | None, operation) -> float | None:
     return position.distance_to(operation.end)
 
 
+def _with_flat_arcs_as_chords(moves: list[tuple[int, object]], position: Point | None) -> list[tuple[int, object, bool]]:
+    """The moves of a block, an arc of a large radius (a crowned roller: 30 m) as straight chords within `ARC_CHECK_SAGITTA_MM` of it,
+    each with True when it goes on the move before (one move number): a straight move gets the exact test of its swept area, while an arc
+    is followed in steps of `PATH_CHECK_STEP_MM`, and on a long arc every step left teeth in the material that every later step looked at
+    again (the user's roller, 2026-11-23: minutes for every change). An arc of a radius below `ARC_CHECK_MIN_RADIUS_MM` (a fillet) is
+    followed in steps as before."""
+    found: list[tuple[int, object, bool]] = []
+    for index, move in moves:
+        end = getattr(move, "end", None)
+        if isinstance(move, ArcMove) and position is not None:
+            arc = ArcSegment(position, move.end, move.center, move.direction)
+            if arc.radius >= ARC_CHECK_MIN_RADIUS_MM:
+                chord = 2 * math.sqrt(2 * arc.radius * ARC_CHECK_SAGITTA_MM - ARC_CHECK_SAGITTA_MM ** 2)
+                pieces = max(1, math.ceil(arc.radius * arc.sweep / chord))
+                found += [(index, LinearMove(arc.point_at(k / pieces), move.feed_mm_per_rev), k > 1) for k in range(1, pieces + 1)]
+                position = move.end
+                continue
+        found.append((index, move, False))
+        if isinstance(end, Point):
+            position = end
+    return found
+
+
 def _swept_by(prepared, position: Point, end: Point) -> Region:
     """What the body of the tool covers on a straight move from `position` to `end`."""
     return prepared.body.swept(end.x - position.x, end.z - position.z).translated(position.x, position.z)
@@ -421,18 +444,18 @@ def _check_block(
     jaws_shrunk = None if jaws is None else jaws.shrunk_for_collision()
     edges = (_HolderEdges(prepared), None if prepared.mirror is None else _HolderEdges(prepared.mirror))
     exact = _ExactTests(prepared, protected, jaws)
-    expanded = [
+    expanded = _with_flat_arcs_as_chords([
         (index, move)
         for index, original in enumerate(block_plan.operations)
         for move in plain_moves(original)
-    ]
+    ], position)
     move_number = 0
-    for operation_index, operation in expanded:
+    for operation_index, operation, same_move in expanded:
         if not isinstance(operation, (Rapid, LinearMove, ArcMove)):
             if isinstance(operation, (SetSpindle, StopSpindle)):
                 spindle, spindle_known = spindle_after(spindle, operation), True
             continue
-        move_number += 1
+        move_number += 0 if same_move else 1
         rapid = isinstance(operation, Rapid)
         reported: set[FindingKind] = set()
         behind: Point | None = None  # the first point of a cutting move behind the clamping plane

@@ -1,0 +1,1255 @@
+{
+  "format": 1,
+  "settings": {
+    "title": "WOP program",
+    "x_mode": "DIAMETER",
+    "work_offset": "G54"
+  },
+  "raw_part": {
+    "material": "Mild steel",
+    "outer_diameter_mm": 37,
+    "length_outside_mm": 540,
+    "inner_diameter_mm": 0,
+    "length_mm": null,
+    "front_z_mm": 0
+  },
+  "safety": {
+    "safe_radius_mm": 28.5,
+    "safe_z_mm": 10,
+    "clearance_mm": 1,
+    "change_radius_mm": 28.5,
+    "change_z_mm": 10
+  },
+  "tools": [
+    {
+      "format": 1,
+      "number": 1,
+      "name": "Example turning tool (iso holder)",
+      "pieces": [
+        {
+          "role": "CUTTER",
+          "segment": {
+            "type": "arc",
+            "start": [
+              0.585597041233067,
+              1.2558169075542336
+            ],
+            "end": [
+              1.3803678650605136,
+              0.12076653968827733
+            ],
+            "center": [
+              1.3106432708623872,
+              0.917722298161674
+            ],
+            "direction": "ccw"
+          }
+        },
+        {
+          "role": "CUTTER",
+          "segment": {
+            "type": "line",
+            "start": [
+              1.3803678650605136,
+              0.12076653968827761
+            ],
+            "end": [
+              16.43500671930842,
+              1.4378767729118775
+            ]
+          }
+        },
+        {
+          "role": "HOLDER",
+          "segment": {
+            "type": "line",
+            "start": [
+              16.43500671930842,
+              1.4378767729118775
+            ],
+            "end": [
+              23.407272266109356,
+              1.4378767729118775
+            ]
+          }
+        },
+        {
+          "role": "HOLDER",
+          "segment": {
+            "type": "line",
+            "start": [
+              23.407272266109356,
+              1.4378767729118775
+            ],
+            "end": [
+              28.969395493197478,
+              7
+            ]
+          }
+        },
+        {
+          "role": "HOLDER",
+          "segment": {
+            "type": "line",
+            "start": [
+              28.969395493197478,
+              7
+            ],
+            "end": [
+              150,
+              7
+            ]
+          }
+        },
+        {
+          "role": "HOLDER",
+          "segment": {
+            "type": "line",
+            "start": [
+              150,
+              7
+            ],
+            "end": [
+              150,
+              32
+            ]
+          }
+        },
+        {
+          "role": "HOLDER",
+          "segment": {
+            "type": "line",
+            "start": [
+              150,
+              32
+            ],
+            "end": [
+              23.407272266109356,
+              32
+            ]
+          }
+        },
+        {
+          "role": "HOLDER",
+          "segment": {
+            "type": "line",
+            "start": [
+              23.407272266109356,
+              32
+            ],
+            "end": [
+              6.972265546800938,
+              14.952071716744973
+            ]
+          }
+        },
+        {
+          "role": "CUTTER",
+          "segment": {
+            "type": "line",
+            "start": [
+              6.972265546800938,
+              14.952071716744973
+            ],
+            "end": [
+              0.585597041233067,
+              1.2558169075542336
+            ]
+          }
+        }
+      ],
+      "material": "COATED_CARBIDE",
+      "sketch": {
+        "format": 1,
+        "next_id": 20,
+        "points": [
+          [
+            1,
+            1.3106432708623872,
+            0.917722298161674
+          ],
+          [
+            2,
+            0.585597041233067,
+            1.2558169075542336
+          ],
+          [
+            3,
+            1.3803678650605136,
+            0.12076653968827761
+          ],
+          [
+            5,
+            16.43500671930842,
+            1.4378767729118775
+          ],
+          [
+            7,
+            23.407272266109356,
+            1.4378767729118775
+          ],
+          [
+            9,
+            28.969395493197478,
+            7.0
+          ],
+          [
+            11,
+            150.0,
+            7.0
+          ],
+          [
+            13,
+            150.0,
+            32.0
+          ],
+          [
+            15,
+            23.407272266109356,
+            32.0
+          ],
+          [
+            17,
+            6.972265546800938,
+            14.952071716744973
+          ]
+        ],
+        "lines": [
+          [
+            6,
+            3,
+            5,
+            false,
+            true,
+            false,
+            false
+          ],
+          [
+            8,
+            5,
+            7,
+            false,
+            false,
+            false,
+            false
+          ],
+          [
+            10,
+            7,
+            9,
+            false,
+            false,
+            false,
+            false
+          ],
+          [
+            12,
+            9,
+            11,
+            false,
+            false,
+            false,
+            false
+          ],
+          [
+            14,
+            11,
+            13,
+            false,
+            false,
+            false,
+            false
+          ],
+          [
+            16,
+            13,
+            15,
+            false,
+            false,
+            false,
+            false
+          ],
+          [
+            18,
+            15,
+            17,
+            false,
+            false,
+            false,
+            false
+          ],
+          [
+            19,
+            17,
+            2,
+            false,
+            true,
+            false,
+            false
+          ]
+        ],
+        "arcs": [
+          [
+            4,
+            1,
+            2,
+            3,
+            "ccw",
+            false,
+            true,
+            false
+          ]
+        ],
+        "constraints": [],
+        "labels": [],
+        "helpers": [],
+        "path": {
+          "rapid": [],
+          "feeds": []
+        },
+        "locked": {
+          "points": [],
+          "lines": [],
+          "arcs": [],
+          "groups": []
+        },
+        "corners": []
+      },
+      "origin": {
+        "library": "My library",
+        "name": "Example turning tool (iso holder)"
+      }
+    },
+    {
+      "format": 1,
+      "number": 2,
+      "name": "PCLNR 2525 M12 CNMG 120408",
+      "pieces": [
+        {
+          "role": "CUTTER",
+          "segment": {
+            "type": "arc",
+            "start": [
+              0.08309453562779072,
+              0.9497748882993139
+            ],
+            "end": [
+              0.9497748882993139,
+              0.0830945356277909
+            ],
+            "center": [
+              0.8800502941011871,
+              0.8800502941011872
+            ],
+            "direction": "ccw"
+          }
+        },
+        {
+          "role": "CUTTER",
+          "segment": {
+            "type": "line",
+            "start": [
+              0.9497748882993139,
+              0.0830945356277909
+            ],
+            "end": [
+              12.846850019979929,
+              1.1239537387660363
+            ]
+          }
+        },
+        {
+          "role": "HOLDER",
+          "segment": {
+            "type": "line",
+            "start": [
+              12.846850019979929,
+              1.1239537387660363
+            ],
+            "end": [
+              13.970803758745962,
+              1.1239537387660363
+            ]
+          }
+        },
+        {
+          "role": "HOLDER",
+          "segment": {
+            "type": "line",
+            "start": [
+              13.970803758745962,
+              1.1239537387660363
+            ],
+            "end": [
+              19.846850019979925,
+              7
+            ]
+          }
+        },
+        {
+          "role": "HOLDER",
+          "segment": {
+            "type": "line",
+            "start": [
+              19.846850019979925,
+              7
+            ],
+            "end": [
+              150,
+              7
+            ]
+          }
+        },
+        {
+          "role": "HOLDER",
+          "segment": {
+            "type": "line",
+            "start": [
+              150,
+              7
+            ],
+            "end": [
+              150,
+              32
+            ]
+          }
+        },
+        {
+          "role": "HOLDER",
+          "segment": {
+            "type": "line",
+            "start": [
+              150,
+              32
+            ],
+            "end": [
+              13.970803758745962,
+              32
+            ]
+          }
+        },
+        {
+          "role": "HOLDER",
+          "segment": {
+            "type": "line",
+            "start": [
+              13.970803758745962,
+              32
+            ],
+            "end": [
+              1.1239537387660339,
+              12.846850019979929
+            ]
+          }
+        },
+        {
+          "role": "CUTTER",
+          "segment": {
+            "type": "line",
+            "start": [
+              1.1239537387660339,
+              12.846850019979929
+            ],
+            "end": [
+              0.08309453562779072,
+              0.9497748882993139
+            ]
+          }
+        }
+      ],
+      "material": "COATED_CARBIDE",
+      "kind": "holder",
+      "definition": {
+        "number": 1,
+        "name": "",
+        "material": "COATED_CARBIDE",
+        "insert_code": "CNMG 120408",
+        "holder_code": "PCLNR 2525 M12",
+        "clamping": "P",
+        "shape": "C",
+        "style": "L",
+        "clearance": "N",
+        "hand": "R",
+        "section": "2525",
+        "length": "M",
+        "insert_size": "12",
+        "tolerance": "M",
+        "insert_type": "G",
+        "thickness": "04",
+        "corner_radius": "08"
+      },
+      "origin": {
+        "library": "My library",
+        "name": "PCLNR 2525 M12 CNMG 120408"
+      }
+    },
+    {
+      "format": 1,
+      "number": 3,
+      "name": "Threading tool",
+      "pieces": [
+        {
+          "role": "CUTTER",
+          "segment": {
+            "type": "line",
+            "start": [
+              2.538076211,
+              -1.5
+            ],
+            "end": [
+              0.03,
+              -0.051961524
+            ]
+          }
+        },
+        {
+          "role": "CUTTER",
+          "segment": {
+            "type": "arc",
+            "start": [
+              0.03,
+              -0.051961524
+            ],
+            "end": [
+              0.03,
+              0.051961524
+            ],
+            "center": [
+              0.06,
+              0
+            ],
+            "direction": "cw"
+          }
+        },
+        {
+          "role": "CUTTER",
+          "segment": {
+            "type": "line",
+            "start": [
+              0.03,
+              0.051961524
+            ],
+            "end": [
+              5,
+              2.921392362
+            ]
+          }
+        },
+        {
+          "role": "HOLDER",
+          "segment": {
+            "type": "line",
+            "start": [
+              5,
+              2.921392362
+            ],
+            "end": [
+              5,
+              8.5
+            ]
+          }
+        },
+        {
+          "role": "HOLDER",
+          "segment": {
+            "type": "line",
+            "start": [
+              5,
+              8.5
+            ],
+            "end": [
+              100,
+              8.5
+            ]
+          }
+        },
+        {
+          "role": "HOLDER",
+          "segment": {
+            "type": "line",
+            "start": [
+              100,
+              8.5
+            ],
+            "end": [
+              100,
+              -1.5
+            ]
+          }
+        },
+        {
+          "role": "HOLDER",
+          "segment": {
+            "type": "line",
+            "start": [
+              100,
+              -1.5
+            ],
+            "end": [
+              2.538076211,
+              -1.5
+            ]
+          }
+        }
+      ],
+      "material": "COATED_CARBIDE",
+      "kind": "thread",
+      "definition": {
+        "number": 3,
+        "name": "",
+        "material": "COATED_CARBIDE",
+        "hand": "RIGHT",
+        "inside": false,
+        "included_angle_deg": 60,
+        "lead_angle_deg": 30,
+        "profile": "PARTIAL",
+        "nose_radius_mm": 0.06,
+        "flat_mm": 0,
+        "cutting_height_mm": 5,
+        "tip_distance_mm": 1.5,
+        "width_mm": 10,
+        "length_mm": 100
+      },
+      "origin": {
+        "library": "My library",
+        "name": "Threading tool"
+      },
+      "points": [
+        {
+          "name": "tip",
+          "x": 0,
+          "z": 0
+        }
+      ]
+    },
+    {
+      "format": 1,
+      "number": 5,
+      "name": "PVLNL 2525 M16 VNMG 160408",
+      "pieces": [
+        {
+          "role": "CUTTER",
+          "segment": {
+            "type": "arc",
+            "start": [
+              1.9436660593402981,
+              -1.6309294735242414
+            ],
+            "end": [
+              2.5276207412876563,
+              -0.22113816055566227
+            ],
+            "center": [
+              2.4578961470895297,
+              -1.018093919029059
+            ],
+            "direction": "cw"
+          }
+        },
+        {
+          "role": "CUTTER",
+          "segment": {
+            "type": "line",
+            "start": [
+              2.5276207412876563,
+              -0.22113816055566227
+            ],
+            "end": [
+              16.543140565582714,
+              -1.4473372586043296
+            ]
+          }
+        },
+        {
+          "role": "HOLDER",
+          "segment": {
+            "type": "line",
+            "start": [
+              16.543140565582714,
+              -1.4473372586043296
+            ],
+            "end": [
+              29.26432943185158,
+              -1.4473372586043296
+            ]
+          }
+        },
+        {
+          "role": "HOLDER",
+          "segment": {
+            "type": "line",
+            "start": [
+              29.26432943185158,
+              -1.4473372586043296
+            ],
+            "end": [
+              34.81699217324725,
+              -7
+            ]
+          }
+        },
+        {
+          "role": "HOLDER",
+          "segment": {
+            "type": "line",
+            "start": [
+              34.81699217324725,
+              -7
+            ],
+            "end": [
+              150,
+              -7
+            ]
+          }
+        },
+        {
+          "role": "HOLDER",
+          "segment": {
+            "type": "line",
+            "start": [
+              150,
+              -7
+            ],
+            "end": [
+              150,
+              -32
+            ]
+          }
+        },
+        {
+          "role": "HOLDER",
+          "segment": {
+            "type": "line",
+            "start": [
+              150,
+              -32
+            ],
+            "end": [
+              29.26432943185158,
+              -32
+            ]
+          }
+        },
+        {
+          "role": "HOLDER",
+          "segment": {
+            "type": "line",
+            "start": [
+              29.26432943185158,
+              -32
+            ],
+            "end": [
+              12.721188866268864,
+              -10.674344885822725
+            ]
+          }
+        },
+        {
+          "role": "CUTTER",
+          "segment": {
+            "type": "line",
+            "start": [
+              12.721188866268864,
+              -10.674344885822725
+            ],
+            "end": [
+              1.9436660593402981,
+              -1.6309294735242414
+            ]
+          }
+        }
+      ],
+      "material": "COATED_CARBIDE",
+      "kind": "holder",
+      "definition": {
+        "number": 5,
+        "name": "",
+        "material": "COATED_CARBIDE",
+        "insert_code": "VNMG 160408",
+        "holder_code": "PVLNL 2525 M16",
+        "clamping": "P",
+        "shape": "V",
+        "style": "L",
+        "clearance": "N",
+        "hand": "L",
+        "section": "2525",
+        "length": "M",
+        "insert_size": "16",
+        "tolerance": "M",
+        "insert_type": "G",
+        "thickness": "04",
+        "corner_radius": "08"
+      },
+      "origin": {
+        "library": "My library",
+        "name": "PVLNL 2525 M16 VNMG 160408"
+      }
+    },
+    {
+      "format": 1,
+      "number": 6,
+      "name": "Grooving tool",
+      "pieces": [
+        {
+          "role": "CUTTER",
+          "segment": {
+            "type": "arc",
+            "start": [
+              0.2,
+              0
+            ],
+            "end": [
+              0,
+              0.2
+            ],
+            "center": [
+              0.2,
+              0.2
+            ],
+            "direction": "cw"
+          }
+        },
+        {
+          "role": "CUTTER",
+          "segment": {
+            "type": "line",
+            "start": [
+              0,
+              0.2
+            ],
+            "end": [
+              0,
+              2.8
+            ]
+          }
+        },
+        {
+          "role": "CUTTER",
+          "segment": {
+            "type": "arc",
+            "start": [
+              0,
+              2.8
+            ],
+            "end": [
+              0.2,
+              3
+            ],
+            "center": [
+              0.2,
+              2.8
+            ],
+            "direction": "cw"
+          }
+        },
+        {
+          "role": "CUTTER",
+          "segment": {
+            "type": "line",
+            "start": [
+              0.2,
+              3
+            ],
+            "end": [
+              10,
+              3
+            ]
+          }
+        },
+        {
+          "role": "HOLDER",
+          "segment": {
+            "type": "line",
+            "start": [
+              10,
+              3
+            ],
+            "end": [
+              10,
+              12
+            ]
+          }
+        },
+        {
+          "role": "HOLDER",
+          "segment": {
+            "type": "line",
+            "start": [
+              10,
+              12
+            ],
+            "end": [
+              100,
+              12
+            ]
+          }
+        },
+        {
+          "role": "HOLDER",
+          "segment": {
+            "type": "line",
+            "start": [
+              100,
+              12
+            ],
+            "end": [
+              100,
+              0
+            ]
+          }
+        },
+        {
+          "role": "HOLDER",
+          "segment": {
+            "type": "line",
+            "start": [
+              100,
+              0
+            ],
+            "end": [
+              10,
+              0
+            ]
+          }
+        },
+        {
+          "role": "CUTTER",
+          "segment": {
+            "type": "line",
+            "start": [
+              10,
+              0
+            ],
+            "end": [
+              0.2,
+              0
+            ]
+          }
+        }
+      ],
+      "material": "COATED_CARBIDE",
+      "kind": "groove",
+      "definition": {
+        "number": 1,
+        "name": "",
+        "material": "COATED_CARBIDE",
+        "hand": "RIGHT",
+        "inside": false,
+        "blade_width_mm": 3,
+        "reach_mm": 10,
+        "corner_radius_mm": 0.2,
+        "front_angle_deg": 90,
+        "holder_width_mm": 12,
+        "holder_length_mm": 100,
+        "touch_off": "LEFT"
+      },
+      "origin": {
+        "library": "My library",
+        "name": "Grooving tool"
+      },
+      "points": [
+        {
+          "name": "tip",
+          "x": 0,
+          "z": 0
+        }
+      ]
+    }
+  ],
+  "contours": [
+    {
+      "format": 1,
+      "id": "contour1",
+      "name": "Contour 1",
+      "segments": [
+        {
+          "type": "arc",
+          "start": [
+            16.999999999967017,
+            -2.6817428853307195e-13
+          ],
+          "end": [
+            17.000000003936293,
+            -492.00000000003223
+          ],
+          "center": [
+            -30240.499954510266,
+            -246.00000024414211
+          ],
+          "direction": "cw"
+        }
+      ],
+      "definition": null,
+      "sketch": {
+        "format": 1,
+        "next_id": 20,
+        "points": [
+          [
+            1,
+            16.999999999967017,
+            -2.6817428853307195e-13
+          ],
+          [
+            2,
+            16.999999999934037,
+            -491.9999999999997
+          ],
+          [
+            3,
+            -30240.499954510266,
+            -246.00000024414211
+          ],
+          [
+            11,
+            18.000000000032987,
+            -246.0
+          ],
+          [
+            12,
+            -17.0,
+            -2.681742884924238e-13
+          ],
+          [
+            16,
+            -18.0,
+            -246.0
+          ]
+        ],
+        "lines": [],
+        "arcs": [
+          [
+            4,
+            3,
+            1,
+            2,
+            "cw",
+            false,
+            false,
+            false
+          ]
+        ],
+        "constraints": [
+          [
+            5,
+            "vertical",
+            [
+              0,
+              1
+            ],
+            [],
+            null
+          ],
+          [
+            6,
+            "horizontal",
+            [
+              1,
+              2
+            ],
+            [],
+            null
+          ],
+          [
+            10,
+            "distance_z",
+            [
+              2,
+              0
+            ],
+            [
+              492.0
+            ],
+            [
+              62.81896895731848,
+              1.8110419789400112
+            ]
+          ],
+          [
+            13,
+            "symmetric_axis_z",
+            [
+              1,
+              12
+            ],
+            [],
+            null
+          ],
+          [
+            14,
+            "distance_x",
+            [
+              12,
+              1
+            ],
+            [
+              34.0
+            ],
+            [
+              -40.81092162284911,
+              51.764775781815196
+            ]
+          ],
+          [
+            15,
+            "distance_z",
+            [
+              11,
+              0
+            ],
+            [
+              246.0
+            ],
+            [
+              209.40300361369904,
+              10.326475693784602
+            ]
+          ],
+          [
+            17,
+            "symmetric_axis_z",
+            [
+              11,
+              16
+            ],
+            [],
+            null
+          ],
+          [
+            18,
+            "distance_x",
+            [
+              16,
+              11
+            ],
+            [
+              36.0
+            ],
+            [
+              -31.572231706986003,
+              76.41762876332399
+            ]
+          ],
+          [
+            19,
+            "point_on_circle",
+            [
+              11,
+              4
+            ],
+            [],
+            null
+          ]
+        ],
+        "labels": [],
+        "helpers": [
+          12,
+          16
+        ],
+        "path": {
+          "rapid": [],
+          "feeds": []
+        },
+        "locked": {
+          "points": [],
+          "lines": [],
+          "arcs": [],
+          "groups": []
+        },
+        "corners": []
+      }
+    }
+  ],
+  "blocks": [
+    {
+      "type": "turning_contour",
+      "parameters": {
+        "block_id": "b1",
+        "tool_number": 1,
+        "spindle": {
+          "direction": "CLOCKWISE",
+          "mode": "CONSTANT_RPM",
+          "value": 500,
+          "rpm_limit": null
+        },
+        "coolant": "NONE",
+        "name": "Turning along a contour",
+        "comment": "",
+        "contour_id": "contour1",
+        "side": "OUTSIDE",
+        "feed_mm_per_rev": 0.3,
+        "depth_of_cut_mm": 1,
+        "pass_direction": "ALONG_Z",
+        "finish_allowance_mm": 0.4000000000000001,
+        "finish_allowance_z_mm": null,
+        "finish_pass": true,
+        "roughing": true,
+        "cutter_compensation": false,
+        "finish_feed_mm_per_rev": 0.1,
+        "finish_spindle_value": 500,
+        "plunge_mode": "FREE",
+        "plunge_feed_mm_per_rev": 0.15,
+        "plunge_depth_of_cut_mm": 0.5,
+        "min_free_angle_deg": 5,
+        "style": "standard",
+        "z_plus_limit_mm": null,
+        "z_minus_limit_mm": null,
+        "x_limit_radius_mm": null
+      }
+    }
+  ],
+  "toolbox": {
+    "library": "My library",
+    "name": "big blue lathe"
+  },
+  "machine": {
+    "format": 1,
+    "name": "Big Blue lathe",
+    "unit_system": "metric",
+    "default_x_mode": "diameter",
+    "axes": [
+      {
+        "name": "X",
+        "min_mm": -400.0,
+        "max_mm": 25.0
+      },
+      {
+        "name": "Z",
+        "min_mm": -1850.0,
+        "max_mm": 5.0
+      }
+    ],
+    "min_rpm": 20.0,
+    "max_rpm": 1600.0,
+    "spindle_power_kw": 11.0,
+    "max_velocity_x_mm_min": 12000.0,
+    "max_velocity_z_mm_min": 10000.0,
+    "capabilities": [
+      "constant surface speed",
+      "spindle-synchronised moves"
+    ],
+    "capabilities_off": [],
+    "postprocessor": "big_blue",
+    "change_radius_mm": null,
+    "change_z_mm": null,
+    "machine_change_radius_mm": -184.19409,
+    "machine_change_z_mm": -1597.759684
+  },
+  "touched": [
+    "block:b1/contour_id",
+    "block:b1/feed_mm_per_rev",
+    "block:b1/spindle.value",
+    "block:b1/tool_number",
+    "setup/length_outside_mm",
+    "setup/outer_diameter_mm"
+  ],
+  "preview": [
+    [
+      "L 0 -540 18.5 -540",
+      "L 18.5 -540 18.5 -492.00000000003223",
+      "L 18.5 -492.00000000003223 17.000000003936293 -492.00000000003223",
+      "A 17.000000003936293 -492.00000000003223 16.999999999967017 -2.6817428853307195e-13 -30240.499954510266 -246.00000024414211 CCW",
+      "L 16.999999999968537 0 0 0",
+      "L 0 0 0 -540"
+    ]
+  ]
+}
