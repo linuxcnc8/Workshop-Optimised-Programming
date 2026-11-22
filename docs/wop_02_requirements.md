@@ -52,6 +52,7 @@ Rules for this list:
 | B32 | The toolpath limits of the chosen block are drawn as dashed lines | The picture has the limit lines only when they are given (`tests/test_toolpath_limits.py`). | Done, not tried by the user |
 | B33 | Plunge mode of the finishing pass of a contour block: free / tool shape / don't plunge | Free follows the contour; tool shape keeps the planning tool out of the part and the stock that stays (no collision on the user's bolt), leaves the rest with a note; don't plunge never moves towards the part on its way, and its roughing does not go into necks either (`tests/test_plunge_mode.py`). | Done, not tried by the user |
 | B34 | Finishing allowance of a contour block in X (typed as a diameter in diameter mode) and in Z (empty: as X per side) | The roughing leaves the X value on a diameter and the Z value on a shoulder; equal values plan as one allowance (`tests/test_allowance_xz.py`). | Done, not tried by the user |
+| B35 | A contour block can make only the finishing pass (Roughing unticked) | After a roughing block it cuts one pass along the contour; on uncut stock a note says to rough first; both off is refused (`tests/test_plunge_mode.py`). | Done, not tried by the user |
 | B4 | A program is saved as a file of blocks | Save, load, save: the two files are byte-identical. | Done |
 | B9 | A single block can be run on its own | The moves of block 3 alone equal those in the full program. | Done |
 | B15 | Export selected (checkbox per block) | Only block 3 ticked gives its moves alone; the header names the blocks. | Done |

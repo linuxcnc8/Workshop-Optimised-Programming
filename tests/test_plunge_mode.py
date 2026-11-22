@@ -76,6 +76,30 @@ class PlungeModeTests(unittest.TestCase):
             replace(block, plunge_mode=PlungeMode.TOOL_SHAPE, cutter_compensation=True)
 
 
+class FinishingOnlyTests(unittest.TestCase):
+    """Roughing unticked (B35, the user 2026-11-23: "i don't have a option for a separate finish pass yet")."""
+
+    def test_a_block_after_the_roughing_makes_only_the_finishing_pass(self):
+        program = load_project(PROJECT).program
+        rough = replace(program.blocks[0], z_minus_limit_mm=None, finish_pass=False, plunge_mode=PlungeMode.TOOL_SHAPE)
+        finish = replace(rough, block_id="f", roughing=False, finish_pass=True)
+        both = plan_program(replace(program, blocks=(rough, finish)))
+        alone = plan_program(replace(program, blocks=(rough,)))
+        moves = [op for op in both.blocks[1].operations if isinstance(op, (LinearMove, ArcMove))]
+        self.assertLess(len(moves), 40, "one pass along the contour, no roughing lines")
+        self.assertLess(both.blocks[1].result.removed.area, alone.blocks[0].result.removed.area / 10)
+        self.assertFalse([m for m in both.messages if "more than the finishing allowance" in m])
+
+    def test_on_uncut_stock_it_says_so(self):
+        program = load_project(PROJECT).program
+        finish = replace(program.blocks[0], z_minus_limit_mm=None, roughing=False, plunge_mode=PlungeMode.TOOL_SHAPE)
+        self.assertTrue([m for m in plan_program(replace(program, blocks=(finish,))).messages if "more than the finishing allowance" in m])
+
+    def test_both_off_is_refused(self):
+        with self.assertRaises(BlockError):
+            replace(load_project(PROJECT).program.blocks[0], roughing=False, finish_pass=False)
+
+
 class NoPlungeWalkTests(unittest.TestCase):
     def test_a_neck_is_bridged_at_the_height_before_it(self):
         path = [LineSegment(Point(8, 0), Point(8, -10)), LineSegment(Point(8, -10), Point(5, -10)), LineSegment(Point(5, -10), Point(5, -20)),

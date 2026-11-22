@@ -32,6 +32,7 @@ from ..constants import (
     EXAMPLE_FINISH_FEED_MM_PER_REV,
     EXAMPLE_MIN_FREE_ANGLE_DEG,
     GEOMETRY_TOLERANCE_MM,
+    FINISHING_ONLY_DEPTH_FACTOR,
     PLUNGE_MODE_LEFT_MIN_MM2,
     PLUNGE_MODE_NOTES,
     RIGHT_ANGLE_DEG,
@@ -85,6 +86,7 @@ class ContourTurningBlock(Block):
     finish_allowance_mm: float = 0  # the finishing allowance in X (a radius: shown as a diameter in diameter mode, B34)
     finish_allowance_z_mm: float | None = None  # the finishing allowance in Z; None: the same as in X (per side)
     finish_pass: bool = True  # False: only roughing; what the allowance leaves stays for a later block
+    roughing: bool = True  # False: only the finishing pass (the material was roughed by an earlier block, B35)
     cutter_compensation: bool = False  # the finishing pass is a compensated contour: lead-in, lead-out and the contour points for a post with G41 / G42
     finish_feed_mm_per_rev: float | None = None
     finish_spindle_value: float | None = None  # rpm or m/min as for the spindle; None: as for roughing
@@ -123,7 +125,7 @@ class ContourTurningBlock(Block):
     def form_fields(self) -> tuple[str, ...]:
         """The contour comes right after the name, then what and where, then the cutting data."""
         return (
-            "name", "style", "contour_id", "side", "pass_direction", "tool_number", "spindle", "feed_mm_per_rev",
+            "name", "style", "contour_id", "side", "pass_direction", "tool_number", "spindle", "roughing", "feed_mm_per_rev",
             "depth_of_cut_mm", "finish_allowance_mm", "finish_allowance_z_mm", "finish_pass", "finish_feed_mm_per_rev", "finish_spindle_value", "cutter_compensation", "plunge_mode",
             "plunge_feed_mm_per_rev", "plunge_depth_of_cut_mm", "min_free_angle_deg",
             "z_plus_limit_mm", "z_minus_limit_mm", "x_limit_radius_mm", "coolant",
@@ -166,13 +168,17 @@ class ContourTurningBlock(Block):
         return frozenset({"finish_feed_mm_per_rev", "finish_spindle_value"})  # next to the "Finishing pass" checkbox
 
     def form_disabled(self) -> frozenset[str]:
-        return frozenset() if self.finish_pass else frozenset({"finish_feed_mm_per_rev", "finish_spindle_value", "plunge_mode", "cutter_compensation"})
+        off = set() if self.finish_pass else {"finish_feed_mm_per_rev", "finish_spindle_value", "plunge_mode", "cutter_compensation"}
+        if not self.roughing:  # only the finishing pass: the roughing values do nothing
+            off |= {"style", "pass_direction", "feed_mm_per_rev", "depth_of_cut_mm", "plunge_feed_mm_per_rev", "plunge_depth_of_cut_mm"}
+        return frozenset(off)
 
     def form_labels(self) -> dict[str, str]:
         return {
             "finish_allowance_mm": "Finishing allowance, X radius",
             "finish_allowance_z_mm": "Finishing allowance, Z",
             "finish_feed_mm_per_rev": "Finishing feed",
+            "roughing": "Roughing (untick: only the finishing pass)",
             "plunge_mode": "Plunge mode (finishing)",
             "plunge_feed_mm_per_rev": "Plunge feed",
             "plunge_depth_of_cut_mm": "Plunge depth of cut",
@@ -198,6 +204,8 @@ class ContourTurningBlock(Block):
         if not 0 <= self.min_free_angle_deg < RIGHT_ANGLE_DEG:
             raise BlockError("the free angle must be at least 0 and less than 90 degrees")
         self.limits.check()
+        if not self.roughing and not self.finish_pass:
+            raise BlockError("roughing and the finishing pass are both off: the block would do nothing")
         if self.plunge_mode is not PlungeMode.FREE and self.cutter_compensation:
             raise BlockError(f"plunge mode '{self.plunge_mode.value}' works without cutter compensation: untick it or choose 'free'")
 
@@ -507,7 +515,7 @@ class ContourTurningBlock(Block):
             STYLES.get(ROUGHING, self.style)
         except StyleError:
             raise BlockError(f"the style {self.style!r} is not available in this program: choose another style") from None
-        rough, notes, first = self._analytic_roughing(context, run_on)
+        rough, notes, first = self._analytic_roughing(context, run_on) if self.roughing else ((), (), None)
         if self.limits.active:
             notes = (self.limits.note(self.name or self.type_name), *notes)
         begin, _finish = self._block_ends(context, inputs.start_z)
@@ -530,8 +538,20 @@ class ContourTurningBlock(Block):
                     box = left.bounds
                     notes = (*notes, f"{self.name or self.type_name}: plunge mode '{self.plunge_mode.value}': {left.area:.2f} mm2 between Z {box.max_z:.2f} "
                              f"and Z {box.min_z:.2f} is not finished; it stays for another tool or block")
+            if not self.roughing:  # only the finishing pass: a note when it takes more than the allowance anywhere
+                notes = (*notes, *self._finishing_only_note(removed.intersection(whole)))
         result = BlockResult(tuple(merge_straight_rapids([*operations, ends[1]])), removed, notes, protected)
         return result if inputs.outside else with_solid_note(result, inputs.stock_radius)
+
+    def _finishing_only_note(self, whole: Region) -> tuple[str, ...]:
+        """A block without roughing: a note when the finishing pass takes more than the finishing allowance somewhere (`whole`: what it
+        takes; it would cut that all at once)."""
+        deeper = max(self.finish_allowance_mm, self.allowance_z_mm) * FINISHING_ONLY_DEPTH_FACTOR + GEOMETRY_TOLERANCE_MM
+        if whole.is_empty or whole.offset(-deeper).is_empty:
+            return ()
+        box = whole.offset(-deeper).bounds
+        return (f"{self.name or self.type_name}: only the finishing pass, but more than the finishing allowance stands in front of the contour "
+                f"between Z {box.max_z:.2f} and Z {box.min_z:.2f}: rough it first (an earlier block), or tick Roughing",)
 
     @staticmethod
     def _taken(residual: Region, first: RoughingCuts, whole: Region) -> Region:
