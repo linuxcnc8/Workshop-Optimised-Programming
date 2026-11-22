@@ -51,6 +51,7 @@ class RoughingJob:
     across: bool = False  # the lines of the plan run across X
     run_on: float = 0.0  # a line whose low end is open (it runs out of the material) goes on that far into the air (past the centre)
     sequence: Callable | None = None  # the order of the roughing style (`rough_style.style_sequence`); None: level by level from the front
+    stays: tuple[Loop, ...] = ()  # material no tool may enter besides the part (the stock in front of a Z+ limit, B30)
 
 
 def roughing_cuts(plan: WantedPlan, stock: list[Loop], job: RoughingJob) -> RoughingCuts | None:
@@ -63,6 +64,8 @@ def roughing_cuts(plan: WantedPlan, stock: list[Loop], job: RoughingJob) -> Roug
     begin, finish = Frame.point_through(side, job.begin), Frame.point_through(side, job.finish)
     outer, inner = (job.outer, job.inner) if job.outside else (-job.outer, -job.inner)  # inside, mirrored: the bore side is the outside one
     keep_ring = keep_loops(path, True, job.allowance, outer, inner, job.far_z)
+    if job.stays:
+        keep_ring += _through(side, "loops", list(job.stays))
     if frame.both_sides:
         keep_ring += mirror.MIRROR_X.loops(keep_ring)  # the part turned over the axis: the far side of a bore
     curve = [segment for _index, segment in reference_path(path, tool, True, job.allowance)]

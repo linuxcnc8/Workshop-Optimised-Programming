@@ -192,8 +192,8 @@ class BoltLimitTests(unittest.TestCase):
 
     def test_no_part_of_the_tool_goes_beyond_the_limit(self):
         # the user, 2026-11-23: "i need that finishing pass to stop at the limit or what use is a limit"
-        from wop.core.analytic.path_trim import tool_z_reach
-        low, _high = tool_z_reach(self.program.equipped_tool(1))
+        from wop.core.analytic.path_trim import nose_z_reach
+        low, _high = nose_z_reach(self.program.equipped_tool(1))
         self.assertGreaterEqual(min(op.end.z for op in self.moves) + low, -90 - TOL)
 
     def test_a_compensated_pass_stops_at_the_limit_with_its_contour_point_on_the_contour(self):

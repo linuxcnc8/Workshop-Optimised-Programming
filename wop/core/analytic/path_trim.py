@@ -1,8 +1,9 @@
-"""The tool path of a finishing pass cut back at a Z limit (B30): no part of the tool goes beyond the limit.
+"""The tool path of a finishing pass cut back at a Z limit (B30): the nose of the tool does not go beyond the limit.
 
-The path of the tool reference (`nose_compensation.reference_path`) is cut where the tool would first reach past the limit: at the end of
-the travel for a Z- limit (the tool travels towards it), at the start for a pass planned mirrored (a left-hand tool travels away from it).
-The level for the reference is the limit moved by how far the outline of the tool reaches beyond its reference point in Z.
+The path of the tool reference (`nose_compensation.reference_path`) is cut where the nose would first reach past the limit: at the end of
+the travel when the tool travels towards the limit (a Z- limit), at the start when it travels away from it (a Z+ limit, or a Z- limit of
+a pass planned mirrored). The level for the reference is the limit moved by how far the nose reaches beyond the reference point in Z (the
+holder of a right-hand tool lies far towards the front, but above the material; the checker sees the whole tool).
 """
 
 from __future__ import annotations
@@ -15,14 +16,15 @@ from ..geometry.chain_index import crossing_value, monotone, split_at
 from ..geometry.chains import box_of
 from ..geometry.intersect import fraction_along
 from ..tooling.tool import Tool
+from ..tooling.tool_reference import nose_circle
 
 Tagged = list[tuple[int, Segment]]
 
 
-def tool_z_reach(tool: Tool) -> tuple[float, float]:
-    """The smallest and the largest Z of the outline of the tool (its reference point at the origin)."""
-    boxes = [box_of(piece.segment) for piece in tool.shape.pieces]
-    return min(box[1] for box in boxes), max(box[3] for box in boxes)
+def nose_z_reach(tool: Tool) -> tuple[float, float]:
+    """The smallest and the largest Z of the nose of the tool (its reference point at the origin; a sharp tool: its tip)."""
+    radius, centre = nose_circle(tool)
+    return centre.z - radius, centre.z + radius
 
 
 def _cut(piece: Segment, level: float) -> list[Segment]:

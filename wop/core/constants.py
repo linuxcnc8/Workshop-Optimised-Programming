@@ -573,4 +573,15 @@ STEP_AXIS_TOLERANCE_MM = 1e-3  # STEP import: round faces whose axes are this cl
 STEP_AXIS_ANGLE_TOLERANCE = 1e-6  # STEP import: axes are parallel when the sine of their angle is this small
 STEP_ENVELOPE_TOLERANCE_MM = 0.005  # STEP import: a non-round face counts where it sticks out more than this
 STEP_SIMPLIFY_TOLERANCE_MM = 0.002  # STEP import: sampled edges are thinned to lines within this distance
+# Plunge mode of a finishing pass (B33, `analytic/finish_modes.py`): the note under the drop-down, and the least area left unfinished that
+# gets a note (smaller is the nose radius left in a corner).
+PLUNGE_MODE_NOTES = {
+    "free": "The finishing pass follows the whole contour; where the tool cannot go the check reports it.",
+    "tool shape": "The finishing pass keeps to where the tool fits: down a steep wall it runs along the back of the tool; what it cannot reach stays.",
+    "don't plunge": "The finishing pass never moves towards the part on its way: it runs straight over necks and grooves; they stay.",
+}
+PLUNGE_MODE_LEFT_MIN_MM2 = 0.05
+PLUNGE_MODE_ON_BORDER_MM = 5e-3  # a tool path point this near the border of where the tool may stand only touches
+PLUNGE_MODE_NOSE_MARGIN_MM = 1e-3  # the tool outline is shrunk by the nose radius less this (shrunk fully, the nose is a point the offset cannot make)
+
 REPLACED_DEFAULTS = apply_overrides(globals(), "wop.core.constants")

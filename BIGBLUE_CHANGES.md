@@ -24,7 +24,7 @@ commit (or two), so commits can be picked one by one. `git log 82a637d..bigblue-
 | `76e1fc4` | Fix: File > New / Open / Undo crashed with "tool T1 is not defined" when the Tools view had a tool chosen | — |
 | `3f7e0d9`, `57b6522`, `ef01747` | Requirement status only ("tried by the user") | — |
 | branch `step-import` | STEP part import for a turning contour (turned outline, no CAD library) | C17 |
-| branch `toolpath-limits` | Toolpath limits: Z+ / Z- / X on a turning contour block, X on a facing block, dashed in the picture; fix: no allowance wall and no dip at a Z- limit | B30, B31, B32 |
+| branch `toolpath-limits` | Toolpath limits: Z+ / Z- / X on a turning contour block, X on a facing block, dashed in the picture; fixes at the Z limits; plunge mode of the finishing pass | B30-B33 |
 
 About 52 files, +2100 / -130 lines, of which more than half are tests, docs and the manual. No new library. None of the
 mypyc-compiled modules (`wop/core/compiled.py`) were touched. Only run on Linux (Python 3.13, PySide6, offscreen Qt
@@ -223,6 +223,24 @@ before the centre, and to rough the front of a long part first while the bar is 
   (user: "i need that finishing pass to stop at the limit or what use is a limit"). Now the tool path is cut back where
   the outline of the tool reaches the limit (`wop/core/analytic/path_trim.py`, `FinishingJob.z_floor` / `z_ceiling`); a
   compensated pass gets the contour point the nose touches there. The corner at the limit keeps the nose radius.
+- Z+ limit (user: "the idea is that the stock outside the limits is not cut"): the stock in front of the limit joins the
+  region no tool may enter in the roughing (`RoughingJob.stays`) and `protected` (the checker reports a touch); lines with
+  no way in are left out with the usual note. The finishing pass starts where the nose reaches the limit.
+
+### 11. Plunge mode of the finishing pass (branch `toolpath-limits`)
+
+ECAM's "Plunge mode" (Free / Tool Geometry / Don't plunge / Same as roughing), for the user's case of a TNMG in a 91-degree
+holder going down a 45-degree back chamfer and down a face to the centre with the bar behind it.
+- `ContourTurningBlock.plunge_mode` (`PlungeMode` in `wop/core/analytic/finish_modes.py`): FREE (default, as before),
+  TOOL_SHAPE, NO_PLUNGE. "Same as roughing" is not needed: WOP's roughing always keeps the tool shape. Roughing unchanged.
+- Tool shape: the region of reference points where the planning tool (back edge turned by the back clearance) overlaps
+  what stays after the block (part, stock beyond the limits, bar behind the contour) is made exactly with the region
+  code: what stays grown by the nose radius, swept along the edges of the tool outline shrunk by the nose radius and
+  turned a half turn (Minkowski sum). The free-mode tool path runs along its border where it dives in.
+  `Region.offset(-r)` fails when an arc of radius r would shrink to a point, so the outline is shrunk by r - 0.001 mm.
+- Don't plunge: the tool path held at the greatest height so far.
+- Both refuse cutter compensation; what they leave is shown and noted. The plain turning block keeps free.
+- Tests: `tests/test_plunge_mode.py` (the user's bolt). Not tried by the user yet.
 
 ## New generic form hooks
 

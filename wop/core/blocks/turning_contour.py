@@ -13,7 +13,8 @@ from collections.abc import Callable
 from dataclasses import dataclass, replace
 
 from ..geometry.chains import ChainError, Loop, box_of, loop_area, loops_box, region_of_loops
-from ..analytic.cut_operations import FinishingJob, cut_operations, finishing_pass
+from ..analytic.cut_operations import FinishingJob, cut_operations, finishing_pass_and_rest
+from ..analytic.finish_modes import PlungeMode
 from ..analytic.cut_list import RoughingCuts
 from ..analytic.roughing_cuts import RoughingJob, left_standing, roughing_cuts
 from ..analytic.material import chains_of_region, is_uncut, stock_chains
@@ -30,6 +31,8 @@ from ..constants import (
     EXAMPLE_FINISH_FEED_MM_PER_REV,
     EXAMPLE_MIN_FREE_ANGLE_DEG,
     GEOMETRY_TOLERANCE_MM,
+    PLUNGE_MODE_LEFT_MIN_MM2,
+    PLUNGE_MODE_NOTES,
     RIGHT_ANGLE_DEG,
 )
 from ..geometry import LineSegment, Point, Segment, segments_to_polyline
@@ -76,6 +79,7 @@ class ContourTurningBlock(Block):
     cutter_compensation: bool = False  # the finishing pass is a compensated contour: lead-in, lead-out and the contour points for a post with G41 / G42
     finish_feed_mm_per_rev: float | None = None
     finish_spindle_value: float | None = None  # rpm or m/min as for the spindle; None: as for roughing
+    plunge_mode: PlungeMode = PlungeMode.FREE  # what the finishing pass does where the contour goes down (B33, `finish_modes.py`)
     plunge_feed_mm_per_rev: float | None = None  # roughing moves against the direction of the lines; None: the normal feed
     plunge_depth_of_cut_mm: float | None = None  # deepest one plunge into a pocket goes; None: the depth of cut
     min_free_angle_deg: float = EXAMPLE_MIN_FREE_ANGLE_DEG  # angle that must stay free between the back of the tool and the wall behind a pocket
@@ -111,7 +115,7 @@ class ContourTurningBlock(Block):
         """The contour comes right after the name, then what and where, then the cutting data."""
         return (
             "name", "style", "contour_id", "side", "pass_direction", "tool_number", "spindle", "feed_mm_per_rev",
-            "depth_of_cut_mm", "finish_allowance_mm", "finish_pass", "finish_feed_mm_per_rev", "finish_spindle_value", "cutter_compensation",
+            "depth_of_cut_mm", "finish_allowance_mm", "finish_pass", "finish_feed_mm_per_rev", "finish_spindle_value", "cutter_compensation", "plunge_mode",
             "plunge_feed_mm_per_rev", "plunge_depth_of_cut_mm", "min_free_angle_deg",
             "z_plus_limit_mm", "z_minus_limit_mm", "x_limit_radius_mm", "coolant",
         )
@@ -135,7 +139,10 @@ class ContourTurningBlock(Block):
 
     def form_notes(self) -> dict[str, str]:
         known = {info.key: info for info in STYLES.styles_for(ROUGHING)}
-        return {"style": known[self.style].hint if self.style in known else "This style is not available in this program: choose another one."}
+        return {
+            "style": known[self.style].hint if self.style in known else "This style is not available in this program: choose another one.",
+            "plunge_mode": PLUNGE_MODE_NOTES[self.plunge_mode.value],
+        }
 
     def follower_values(self) -> dict[str, object]:
         """The plunge feed and the plunge depth of cut are half of the feed and the depth of cut, the finishing speed is
@@ -150,12 +157,13 @@ class ContourTurningBlock(Block):
         return frozenset({"finish_feed_mm_per_rev", "finish_spindle_value"})  # next to the "Finishing pass" checkbox
 
     def form_disabled(self) -> frozenset[str]:
-        return frozenset() if self.finish_pass else frozenset({"finish_feed_mm_per_rev", "finish_spindle_value", "cutter_compensation"})
+        return frozenset() if self.finish_pass else frozenset({"finish_feed_mm_per_rev", "finish_spindle_value", "plunge_mode", "cutter_compensation"})
 
     def form_labels(self) -> dict[str, str]:
         return {
             "finish_allowance_mm": "Finishing allowance",
             "finish_feed_mm_per_rev": "Finishing feed",
+            "plunge_mode": "Plunge mode (finishing)",
             "plunge_feed_mm_per_rev": "Plunge feed",
             "plunge_depth_of_cut_mm": "Plunge depth of cut",
             "min_free_angle_deg": "Back clearance",
@@ -180,6 +188,8 @@ class ContourTurningBlock(Block):
         if not 0 <= self.min_free_angle_deg < RIGHT_ANGLE_DEG:
             raise BlockError("the free angle must be at least 0 and less than 90 degrees")
         self.limits.check()
+        if self.plunge_mode is not PlungeMode.FREE and self.cutter_compensation:
+            raise BlockError(f"plunge mode '{self.plunge_mode.value}' works without cutter compensation: untick it or choose 'free'")
 
     @property
     def contour_ids(self) -> tuple[str, ...]:
@@ -255,6 +265,15 @@ class ContourTurningBlock(Block):
             return loops
         return chains_of_region(region_of_loops(loops).intersection(self._box(inputs)))
 
+    def _in_front_of_z_plus(self, inputs: PlanInputs) -> list[Loop]:
+        """The material in front of the Z+ limit: it is not cut (the user: "the stock outside the limits is not cut"), so the roughing keeps
+        out of it as out of the part; a line with no way in past it is left out (a note)."""
+        if self.z_plus_limit_mm is None or not inputs.stock:
+            return []
+        reach = abs(inputs.outer) + abs(inputs.start_z) + max(abs(p.z) for s in inputs.path for p in (s.start, s.end)) + 1
+        front = Region.rectangle(-reach, self.z_plus_limit_mm, reach, reach)
+        return chains_of_region(region_of_loops(inputs.stock).intersection(front))
+
     def _box(self, inputs: PlanInputs) -> Region:
         reach = abs(inputs.outer) + abs(inputs.start_z) + max(abs(p.z) for s in inputs.path for p in (s.start, s.end)) + 1
         return limit_box(self.limits, inputs.outside, not inputs.outside, reach)
@@ -321,6 +340,7 @@ class ContourTurningBlock(Block):
             inner=min(bounds.min_x, path[0].start.x) - clearance if outside else max(bounds.max_x, max(box_of(s)[2] for s in path)) + clearance,
             far_z=context.raw_part.clamp_z_mm - clearance, clearance=clearance, begin=begin, finish=finish,
             across=inputs.direction is LineDirection.ALONG_X, run_on=run_on, sequence=self._roughing_sequence(),
+            stays=tuple(self._in_front_of_z_plus(inputs)),
         )
         try:
             return roughing_cuts(plan, inputs.stock, job)
@@ -342,9 +362,12 @@ class ContourTurningBlock(Block):
         approach = max(start_z, bounds.max_z) + safety.clearance_mm
         return Point(safety.safe_radius_mm, approach), Point(safety.safe_radius_mm, max(safety.safe_z_mm, bounds.max_z + safety.clearance_mm, approach))
 
-    def _analytic_finishing(self, context: BlockContext, inputs: PlanInputs, material: list, start: Point) -> tuple[tuple, tuple[str, ...]]:
-        """The finishing pass of the analytic planner (`cut_operations.finishing_pass`), from `start` (where the roughing ended) to the safe
-        point, and the note when the nose cannot follow the contour (`nose_follow.py`)."""
+    def _analytic_finishing(
+        self, context: BlockContext, inputs: PlanInputs, material: list, start: Point, stays: Region,
+    ) -> tuple[tuple, tuple[str, ...], list[Loop]]:
+        """The finishing pass of the analytic planner (`cut_operations.finishing_pass_and_rest`), from `start` (where the roughing ended) to the
+        safe point, the note when the nose cannot follow the contour (`nose_follow.py`) and the material after it. `stays`: what must stay
+        (the plunge mode 'tool shape' keeps the tool out of it)."""
         path, outside, outer = inputs.path, inputs.outside, inputs.outer
         away: tuple[float, float] | None = None
         if self.z_minus_limit_mm is not None:
@@ -356,15 +379,22 @@ class ContourTurningBlock(Block):
         _begin, finish = self._block_ends(context, inputs.start_z)
         feed = self.finish_feed_mm_per_rev or self.feed_mm_per_rev
         floor = self.z_minus_limit_mm if away is not None else None  # the pass stops where the tool reaches the limit (the user: "or what use is a limit")
-        job = FinishingJob(path, context.tool, outside, self.cutter_compensation, feed, context.safety.clearance_mm, outer, exit=away, z_floor=floor)
+        ceiling = self.z_plus_limit_mm  # the pass starts where the nose reaches the Z+ limit (the stock in front of it is not cut)
+        job = FinishingJob(
+            path, context.tool, outside, self.cutter_compensation, feed, context.safety.clearance_mm, outer, exit=away, z_floor=floor,
+            z_ceiling=ceiling, mode=self.plunge_mode, stays=stays, clearance_deg=self.min_free_angle_deg,
+        )
         if outside and back_direction(context.tool) < 0:  # a left-hand tool finishes from the chuck side towards the front: planned mirrored
             flip = MIRROR_Z  # the travel turns round: the end at the limit becomes the start, the way away the way in
             entry = None if away is None else (away[0], -away[1])
-            ceiling = None if floor is None else -floor
-            mirrored = replace(job, path=flip.path(path), tool=flip.tool(context.tool), exit=None, entry=entry, z_floor=None, z_ceiling=ceiling)
-            operations = [flip.operation(move) for move in finishing_pass(mirrored, flip.loops(material), flip.point(start), flip.point(finish))]
+            mirrored = replace(
+                job, path=flip.path(path), tool=flip.tool(context.tool), exit=None, entry=entry, stays=stays.mirrored_z(),
+                z_floor=None if ceiling is None else -ceiling, z_ceiling=None if floor is None else -floor,
+            )
+            moves, rest = finishing_pass_and_rest(mirrored, flip.loops(material), flip.point(start), flip.point(finish))
+            operations, rest = [flip.operation(move) for move in moves], flip.loops(rest)
         else:
-            operations = finishing_pass(job, material, start, finish)
+            operations, rest = finishing_pass_and_rest(job, material, start, finish)
         spindle = finishing_spindle(self.spindle, self.finish_spindle_value)
         if spindle is not None:
             operations = [SetSpindle(spindle), *operations]
@@ -379,7 +409,7 @@ class ContourTurningBlock(Block):
                 f"and Z {min(zs):.2f}: the finishing pass needs a nose radius of {largest:.2f} mm or smaller"
                 + (" (the controller may refuse the compensated pass there)" if self.cutter_compensation else "")
             )
-        return tuple(operations), tuple(notes)
+        return tuple(operations), tuple(notes), rest
 
     def _analytic_roughing(self, context: BlockContext, run_on: float = 0.0) -> tuple[tuple, tuple[str, ...], RoughingCuts | None]:
         """The roughing moves of the analytic planner (from the first rapid to the safe point), the notes and the cut list (what it leaves for
@@ -431,7 +461,10 @@ class ContourTurningBlock(Block):
         if self.limits.active:
             whole = whole.intersection(self._box(inputs))  # only inside the toolpath limits
             drawn_ring = removal_ring(inputs.full_path or inputs.path, inputs.outside, 0.0, inputs.outer, inputs.start_z)
-            protected = residual.difference(Region.from_segments(drawn_ring))  # the part as drawn; the stock beyond the limits may be touched
+            protected = residual.difference(Region.from_segments(drawn_ring))  # the part as drawn; the stock beyond a Z- or X limit may be touched
+            if self.z_plus_limit_mm is not None:  # ... but the stock in front of a Z+ limit is not cut: the checker reports a touch
+                front = self._in_front_of_z_plus(inputs)
+                protected = protected.union(region_of_loops(front)) if front else protected
         if whole.is_empty:
             return BlockResult(ends, Region.empty(), ("turning: nothing to remove",))
         try:
@@ -446,10 +479,21 @@ class ContourTurningBlock(Block):
         removed = self._taken(residual, first, whole) if first is not None else Region.empty()
         if self.finish_pass:
             material = list(first.residual) if first is not None else inputs.stock
-            finishing, finish_notes = self._analytic_finishing(context, inputs, material, rough[-1].end if rough else begin)
+            stays = residual.difference(whole)  # what stays after the block: the part, the stock beyond the limits, the bar behind the contour
+            if not inputs.outside:
+                stays = stays.union(stays.mirrored())
+            finishing, finish_notes, rest = self._analytic_finishing(context, inputs, material, rough[-1].end if rough else begin, stays)
             operations += finishing
             notes = (*notes, *finish_notes)
-            removed = removed.union(whole)  # the finishing pass follows the contour: it takes what the roughing could not reach (the note stays)
+            if self.plunge_mode is PlungeMode.FREE:
+                removed = removed.union(whole)  # the finishing pass follows the contour: it takes what the roughing could not reach (the note stays)
+            else:  # it keeps out of where the tool cannot go: what it leaves stays (shown) for another tool
+                removed = residual.difference(region_of_loops(rest)) if rest else residual
+                left = whole.difference(removed)
+                if left.area > PLUNGE_MODE_LEFT_MIN_MM2:
+                    box = left.bounds
+                    notes = (*notes, f"{self.name or self.type_name}: plunge mode '{self.plunge_mode.value}': {left.area:.2f} mm2 between Z {box.max_z:.2f} "
+                             f"and Z {box.min_z:.2f} is not finished; it stays for another tool or block")
         result = BlockResult(tuple(merge_straight_rapids([*operations, ends[1]])), removed, notes, protected)
         return result if inputs.outside else with_solid_note(result, inputs.stock_radius)
 

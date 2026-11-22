@@ -409,6 +409,7 @@
         "cutter_compensation": false,
         "finish_feed_mm_per_rev": 0.1,
         "finish_spindle_value": 180,
+        "plunge_mode": "FREE",
         "plunge_feed_mm_per_rev": 0.1,
         "plunge_depth_of_cut_mm": 0.5,
         "min_free_angle_deg": 5,

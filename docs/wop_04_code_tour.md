@@ -85,7 +85,7 @@ At the end it adds the closing moves (rapid to the change position, spindle stop
 1. `_analytic_inputs`: what the planner needs from the form and the material, as a `PlanInputs` (the contour with its last wall run on to the material, the material as loops, inside or outside, the direction of the lines, the front).
 2. `whole`: the area between the stock and the contour (`wanted_lines.removal_ring`). Nothing there: a note and no moves.
 3. `_analytic_roughing`: the cut list of the analytic planner (`roughing_cuts`, section 15), as moves (`cut_operations`), and the notes.
-4. `_analytic_finishing` when the block has a finishing pass (`cut_operations.finishing_pass`; at a Z- limit the tool path is cut back where the tool reaches the limit, `analytic/path_trim.py`).
+4. `_analytic_finishing` when the block has a finishing pass (`cut_operations.finishing_pass`; at a Z limit the tool path is cut back where the nose reaches the limit, `analytic/path_trim.py`; the plunge mode, `analytic/finish_modes.py`).
 5. The `BlockResult`: the block begin, a rapid to the start point (outside; inside the first rapid goes straight over the bore), the roughing, the finishing pass, the block end; removed is what the roughing took (`_taken`: the material minus what the cut list leaves), and with a finishing pass all of `whole` (it follows the contour); `protected` is everything outside `whole`.
 
 Planning rule (CLAUDE.md): the geometry to cut comes from the form values only. The tool body is only asked in the roughing, where a line is shortened or left out if the tool body cannot reach; the finishing pass follows the contour whatever the tool can reach.

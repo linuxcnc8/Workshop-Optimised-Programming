@@ -22,7 +22,9 @@ from .cut_list import RoughingCuts
 from .rapids import clear_way
 from ..geometry.removal import cut
 from .tool_outline import tool_loops
-from .path_trim import cut_at_end, cut_at_start, nominal_point, tool_z_reach
+from .finish_modes import PlungeMode, forbidden, no_plunge, within_reach
+from ..geometry.region import Region
+from .path_trim import cut_at_end, cut_at_start, nominal_point, nose_z_reach
 
 
 def _feed_moves(pieces: tuple[Segment, ...] | list[Segment], feed: float) -> list:
@@ -105,11 +107,19 @@ class FinishingJob:
     clear_x: float  # the radius beyond the material the tool goes out to where no free way is found
     entry: tuple[float, float] | None = None  # (dx, dz): the pass comes in to the first point of the tool path from there along that line
     exit: tuple[float, float] | None = None  # (dx, dz): the pass leaves the last point of the tool path along that line (a toolpath limit)
-    z_floor: float | None = None  # a Z- limit at the end of the travel: no part of the tool goes below it (the path is cut back there)
-    z_ceiling: float | None = None  # a limit at the start of the travel (a pass planned mirrored): no part of the tool goes above it
+    z_floor: float | None = None  # a limit at the end of the travel (Z-): the nose does not go below it (the path is cut back there)
+    z_ceiling: float | None = None  # a limit at the start of the travel (Z+): the nose does not go above it
+    mode: PlungeMode = PlungeMode.FREE  # what the pass does where the contour goes down (`finish_modes.py`)
+    stays: Region | None = None  # what must stay (the part, the stock beyond the limits): the tool shape mode keeps the tool out of it
+    clearance_deg: float = 0.0  # the back clearance of the block (the tool shape mode)
 
 
 def finishing_pass(job: FinishingJob, material: list[Loop], start: Point, finish: Point) -> list:
+    """The moves of the finishing pass (`finishing_pass_and_rest`)."""
+    return finishing_pass_and_rest(job, material, start, finish)[0]
+
+
+def finishing_pass_and_rest(job: FinishingJob, material: list[Loop], start: Point, finish: Point) -> tuple[list, list[Loop]]:
     """The finishing pass (the user's rule, 2026-10-23): the tool path along the whole contour (`reference_path`: the nose follows it) at the
     finishing feed, through the air too, never shortened and never left; from where the tool stands (`start`) to the safe point (`finish`).
     The way there and away are the rapids between the cuts (X12, `clear_way`): they keep the clearance from the material (`material` before
@@ -120,7 +130,7 @@ def finishing_pass(job: FinishingJob, material: list[Loop], start: Point, finish
     nose radius that would)."""
     path, tool, outside, compensate, feed, clearance = job.path, job.tool, job.outside, job.compensate, job.feed, job.clearance
     pieces = reference_path(path, tool, outside)
-    low, high = tool_z_reach(tool)
+    low, high = nose_z_reach(tool)
     cut_end = cut_start = False
     if job.z_floor is not None:
         pieces, cut_end = cut_at_end(pieces, job.z_floor - low)
@@ -128,6 +138,10 @@ def finishing_pass(job: FinishingJob, material: list[Loop], start: Point, finish
         pieces, cut_start = cut_at_start(pieces, job.z_ceiling - high)
     if not pieces:  # the whole pass lies beyond the limit (the tool is wider than what is left): it follows the contour as before
         pieces, cut_end, cut_start = reference_path(path, tool, outside), False, False
+    if job.mode is PlungeMode.TOOL_SHAPE and job.stays is not None:
+        pieces = within_reach(pieces, forbidden(job.stays, tool, outside, job.clearance_deg), job.clear_x) or pieces
+    elif job.mode is PlungeMode.NO_PLUNGE:
+        pieces = no_plunge(pieces, outside)
     sign = 1 if outside else -1
     loops = tool_loops(tool)
     moves: list = []
@@ -180,7 +194,7 @@ def finishing_pass(job: FinishingJob, material: list[Loop], start: Point, finish
         after = material  # the way away keeps off the material as it was before the pass
     way_out = clear_way(end, finish, loops, after, clearance)
     tail = _rebuilt(way_out, feed) if way_out is not None else _out_and_over(end, finish, job.clear_x, None)
-    return [*head, *moves, *tail]
+    return [*head, *moves, *tail], after
 
 
 def _long_enough(vector: tuple[float, float], across: float) -> tuple[float, float]:
