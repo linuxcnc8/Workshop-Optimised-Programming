@@ -219,6 +219,10 @@ before the centre, and to rough the front of a long part first while the bar is 
   compensation (`FinishingJob.exit`, and `entry` for a left-hand tool planned mirrored). The finishing pass finishes the
   diameter right up to the limit (the user: "finishing pass could go right up to the z- limit"). Regression project:
   `tests/data/projects/bolt_z_minus_limit.wop.json` (the contour of his STEP part, not the file).
+- Second fix the same day: the finishing pass ended with the nose centre on the limit, so the nose cut 0.8 mm past it
+  (user: "i need that finishing pass to stop at the limit or what use is a limit"). Now the tool path is cut back where
+  the outline of the tool reaches the limit (`wop/core/analytic/path_trim.py`, `FinishingJob.z_floor` / `z_ceiling`); a
+  compensated pass gets the contour point the nose touches there. The corner at the limit keeps the nose radius.
 
 ## New generic form hooks
 

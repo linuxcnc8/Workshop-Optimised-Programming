@@ -175,6 +175,7 @@ class BoltLimitTests(unittest.TestCase):
         from wop.core.program_model.program import plan_program
         from wop.core.verify import verify_plan
         program = load_project(Path(__file__).parent / "data" / "projects" / "bolt_z_minus_limit.wop.json").program
+        cls.program = program
         cls.plan = plan_program(program)
         cls.findings = [str(getattr(f, "message", f)) for f in verify_plan(program, cls.plan)]
         cls.moves = [op for op in cls.plan.operations if isinstance(op, (LinearMove, ArcMove))]
@@ -188,6 +189,22 @@ class BoltLimitTests(unittest.TestCase):
         self.assertTrue(diameter)
         self.assertGreaterEqual(min(op.end.x for op in diameter), 6.3 - TOL)  # the tip of the tool never below the finished radius
         self.assertTrue(any(abs(op.end.x - 6.3) <= TOL and op.end.z <= -90 + TOL for op in diameter), "finished right up to the limit")
+
+    def test_no_part_of_the_tool_goes_beyond_the_limit(self):
+        # the user, 2026-11-23: "i need that finishing pass to stop at the limit or what use is a limit"
+        from wop.core.analytic.path_trim import tool_z_reach
+        low, _high = tool_z_reach(self.program.equipped_tool(1))
+        self.assertGreaterEqual(min(op.end.z for op in self.moves) + low, -90 - TOL)
+
+    def test_a_compensated_pass_stops_at_the_limit_with_its_contour_point_on_the_contour(self):
+        from dataclasses import replace
+        from wop.core.program_model.program import plan_program
+        block = replace(self.program.blocks[0], cutter_compensation=True)
+        plan = plan_program(replace(self.program, blocks=(block,)))
+        moves = [op for op in plan.operations if isinstance(op, (LinearMove, ArcMove)) and op.contour_end is not None]
+        last = min(moves, key=lambda op: op.contour_end.z)
+        self.assertAlmostEqual(last.contour_end.x, 6.3, delta=1e-6)
+        self.assertGreater(last.contour_end.z, -90)
 
     def test_no_note_about_the_corner_at_the_limit(self):
         notes = self.plan.messages

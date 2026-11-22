@@ -355,11 +355,13 @@ class ContourTurningBlock(Block):
                 away = (step if outside else -step, step)
         _begin, finish = self._block_ends(context, inputs.start_z)
         feed = self.finish_feed_mm_per_rev or self.feed_mm_per_rev
-        job = FinishingJob(path, context.tool, outside, self.cutter_compensation, feed, context.safety.clearance_mm, outer, exit=away)
+        floor = self.z_minus_limit_mm if away is not None else None  # the pass stops where the tool reaches the limit (the user: "or what use is a limit")
+        job = FinishingJob(path, context.tool, outside, self.cutter_compensation, feed, context.safety.clearance_mm, outer, exit=away, z_floor=floor)
         if outside and back_direction(context.tool) < 0:  # a left-hand tool finishes from the chuck side towards the front: planned mirrored
             flip = MIRROR_Z  # the travel turns round: the end at the limit becomes the start, the way away the way in
             entry = None if away is None else (away[0], -away[1])
-            mirrored = replace(job, path=flip.path(path), tool=flip.tool(context.tool), exit=None, entry=entry)
+            ceiling = None if floor is None else -floor
+            mirrored = replace(job, path=flip.path(path), tool=flip.tool(context.tool), exit=None, entry=entry, z_floor=None, z_ceiling=ceiling)
             operations = [flip.operation(move) for move in finishing_pass(mirrored, flip.loops(material), flip.point(start), flip.point(finish))]
         else:
             operations = finishing_pass(job, material, start, finish)

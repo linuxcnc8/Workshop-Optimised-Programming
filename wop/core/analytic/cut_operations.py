@@ -22,6 +22,7 @@ from .cut_list import RoughingCuts
 from .rapids import clear_way
 from ..geometry.removal import cut
 from .tool_outline import tool_loops
+from .path_trim import cut_at_end, cut_at_start, nominal_point, tool_z_reach
 
 
 def _feed_moves(pieces: tuple[Segment, ...] | list[Segment], feed: float) -> list:
@@ -104,6 +105,8 @@ class FinishingJob:
     clear_x: float  # the radius beyond the material the tool goes out to where no free way is found
     entry: tuple[float, float] | None = None  # (dx, dz): the pass comes in to the first point of the tool path from there along that line
     exit: tuple[float, float] | None = None  # (dx, dz): the pass leaves the last point of the tool path along that line (a toolpath limit)
+    z_floor: float | None = None  # a Z- limit at the end of the travel: no part of the tool goes below it (the path is cut back there)
+    z_ceiling: float | None = None  # a limit at the start of the travel (a pass planned mirrored): no part of the tool goes above it
 
 
 def finishing_pass(job: FinishingJob, material: list[Loop], start: Point, finish: Point) -> list:
@@ -117,17 +120,30 @@ def finishing_pass(job: FinishingJob, material: list[Loop], start: Point, finish
     nose radius that would)."""
     path, tool, outside, compensate, feed, clearance = job.path, job.tool, job.outside, job.compensate, job.feed, job.clearance
     pieces = reference_path(path, tool, outside)
+    low, high = tool_z_reach(tool)
+    cut_end = cut_start = False
+    if job.z_floor is not None:
+        pieces, cut_end = cut_at_end(pieces, job.z_floor - low)
+    if job.z_ceiling is not None:
+        pieces, cut_start = cut_at_start(pieces, job.z_ceiling - high)
+    if not pieces:  # the whole pass lies beyond the limit (the tool is wider than what is left): it follows the contour as before
+        pieces, cut_end, cut_start = reference_path(path, tool, outside), False, False
     sign = 1 if outside else -1
     loops = tool_loops(tool)
     moves: list = []
-    radius, _centre = nose_circle(tool)
+    radius, centre = nose_circle(tool)
+
+    def touched(index: int, at: Point, cut: bool, nominal: Point) -> Point:
+        """The point of the contour the nose touches (a pass cut back at a limit ends where the tool reaches it, not at the contour point)."""
+        return nominal_point(at, centre, path[index]) if cut else nominal
     lead = radius + COMPENSATION_LEAD_MARGIN_MM
     if job.entry is not None:  # in along a line given by the block (a toolpath limit), worked out on the tool path: the nose never dips
         first_index, first = pieces[0]
         dx, dz = _long_enough(job.entry, lead if compensate else 0.0)
         begin = Point(first.start.x + dx, first.start.z + dz)
         side = (CompensationSide.RIGHT if outside else CompensationSide.LEFT) if compensate else None
-        moves.append(LinearMove(first.start, feed, path[first_index].start if compensate else None, MoveRole.LEAD_IN if compensate else MoveRole.NORMAL, side))
+        contact = touched(first_index, first.start, cut_start, path[first_index].start)
+        moves.append(LinearMove(first.start, feed, contact if compensate else None, MoveRole.LEAD_IN if compensate else MoveRole.NORMAL, side))
     elif compensate:
         first_index, first = pieces[0]
         tx, tz = tangent_at_start(path[first_index])
@@ -137,16 +153,17 @@ def finishing_pass(job: FinishingJob, material: list[Loop], start: Point, finish
     else:
         begin = pieces[0][1].start
     followed: set[int] = set()
-    for index, segment in pieces:
+    for number, (index, segment) in enumerate(pieces):
         join = compensate and index in followed  # the pieces after the first of a contour piece are the round joins at outer corners
         followed.add(index)
         nominal = path[index] if compensate and not join else None
         role = MoveRole.JOIN if join else MoveRole.NORMAL
+        contact = None if nominal is None else touched(index, segment.end, cut_end and number == len(pieces) - 1, nominal.end)
         if isinstance(segment, ArcSegment):
-            centre = nominal.center if isinstance(nominal, ArcSegment) else None
-            moves.append(ArcMove(segment.end, segment.center, segment.direction, feed, None if nominal is None else nominal.end, centre, role))
+            arc_centre = nominal.center if isinstance(nominal, ArcSegment) else None
+            moves.append(ArcMove(segment.end, segment.center, segment.direction, feed, contact, arc_centre, role))
         else:
-            moves.append(LinearMove(segment.end, feed, None if nominal is None else nominal.end, role))
+            moves.append(LinearMove(segment.end, feed, contact, role))
     end = pieces[-1][1].end
     if job.exit is not None:  # away along a line given by the block (a toolpath limit), from the tool path: the nose never dips
         dx, dz = _long_enough(job.exit, lead if compensate else 0.0)
