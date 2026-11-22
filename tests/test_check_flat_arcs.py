@@ -1,5 +1,5 @@
 """The check follows an arc of a large radius as straight chords (the user's crowned roller, 2026-11-23: an arc of a 30 m radius over
-492 mm took minutes for every change; the user: "any arc above 200mm to a few chords")."""
+492 mm took minutes for every change; the user: "any arc above 200mm to a few chords", then "all arcs over 2mm")."""
 
 import time
 import unittest
@@ -15,9 +15,9 @@ PROJECT = Path(__file__).parent / "data" / "projects" / "crowned_roller.wop.json
 
 
 class FlatArcTests(unittest.TestCase):
-    def test_an_arc_of_200_mm_or_more_becomes_chords_of_one_move_and_a_fillet_stays(self):
+    def test_an_arc_of_2_mm_or_more_becomes_chords_of_one_move_and_a_smaller_one_stays(self):
         big = ArcMove(Point(17, -100), Point(-183, -50), ArcDirection.CW, 0.1)  # radius 200 (start at (17, 0))
-        small = ArcMove(Point(18, -1), Point(17, -1), ArcDirection.CCW, 0.1)
+        small = ArcMove(Point(18, -1), Point(17, -1), ArcDirection.CCW, 0.1)  # radius 1
         moves = _with_flat_arcs_as_chords([(0, big)], Point(17, 0))
         self.assertGreater(len(moves), 2)
         self.assertTrue(all(isinstance(move, LinearMove) for _i, move, _same in moves))

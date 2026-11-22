@@ -352,8 +352,8 @@ def _straight_length(position: Point | None, operation) -> float | None:
 
 
 def _with_flat_arcs_as_chords(moves: list[tuple[int, object]], position: Point | None) -> list[tuple[int, object, bool]]:
-    """The moves of a block, an arc of a large radius (a crowned roller: 30 m) as straight chords within `ARC_CHECK_SAGITTA_MM` of it,
-    each with True when it goes on the move before (one move number): a straight move gets the exact test of its swept area, while an arc
+    """The moves of a block, an arc of a radius of 2 mm or more (the user, 2026-11-23: "0.001mm is close enough") as straight chords within `ARC_CHECK_SAGITTA_MM` of it,
+    each with True when it goes on the move before (one move number, each kind of finding once): a straight move gets the exact test of its swept area, while an arc
     is followed in steps of `PATH_CHECK_STEP_MM`, and on a long arc every step left teeth in the material that every later step looked at
     again (the user's roller, 2026-11-23: minutes for every change). An arc of a radius below `ARC_CHECK_MIN_RADIUS_MM` (a fillet) is
     followed in steps as before."""
@@ -457,7 +457,8 @@ def _check_block(
             continue
         move_number += 0 if same_move else 1
         rapid = isinstance(operation, Rapid)
-        reported: set[FindingKind] = set()
+        if not same_move:  # the chords of one arc are one move: each kind of finding once
+            reported: set[FindingKind] = set()
         behind: Point | None = None  # the first point of a cutting move behind the clamping plane
         if not rapid and spindle_known and spindle is None:
             reported.add(FindingKind.SPINDLE_OFF)

@@ -583,7 +583,7 @@ PLUNGE_MODE_NOTES = {
 }
 PLUNGE_MODE_LEFT_MIN_MM2 = 0.05
 ARC_CHECK_SAGITTA_MM = 0.001  # the check follows an arc of a large radius as straight chords this close to it (they get the exact test)
-ARC_CHECK_MIN_RADIUS_MM = 200.0  # ... when its radius is at least this (the user's suggestion, 2026-11-23); a smaller arc is followed in steps
+ARC_CHECK_MIN_RADIUS_MM = 2.0  # ... when its radius is at least this (the user, 2026-11-23: "all arcs over 2mm"); a smaller arc is followed in steps
 FINISHING_ONLY_DEPTH_FACTOR = 1.5  # a block with only the finishing pass notes material thicker than this x its finishing allowance (GUESS)
 PLUNGE_MODE_ON_BORDER_MM = 5e-3  # a tool path point this near the border of where the tool may stand only touches
 PLUNGE_MODE_NOSE_MARGIN_MM = 1e-3  # the tool outline is shrunk by the nose radius less this (shrunk fully, the nose is a point the offset cannot make)
