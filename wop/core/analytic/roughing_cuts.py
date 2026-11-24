@@ -28,7 +28,7 @@ from .tip_walk import TipCurves, free_run, way_out
 from ..geometry.tidy import steady_intersection
 from ..geometry.tool_edges import placed, translated_segment
 from .tool_outline import planning_loops, tool_loops
-from .wanted_lines import WantedLine, WantedPlan
+from .wanted_lines import LineKind, WantedLine, WantedPlan
 from .cut_list import Cut, CutKind, RoughingCuts
 from .frame import Frame
 from .rapids import RapidTool, connect_cuts, leg_free
@@ -52,6 +52,7 @@ class RoughingJob:
     run_on: float = 0.0  # a line whose low end is open (it runs out of the material) goes on that far into the air (past the centre)
     sequence: Callable | None = None  # the order of the roughing style (`rough_style.style_sequence`); None: level by level from the front
     stays: tuple[Loop, ...] = ()  # material no tool may enter besides the part (the stock in front of a Z+ limit, B30)
+    depth_of_cut: float = 0.0  # the block's depth of cut: a pass over a bump may take a pocket that deep without its upper layers; 0: never
 
 
 def roughing_cuts(plan: WantedPlan, stock: list[Loop], job: RoughingJob) -> RoughingCuts | None:
@@ -104,11 +105,21 @@ def _roughing_cuts(
     the contour (`curve`) already made, all in the one case of the frame (`frame` only says where the axis and the free sides are)."""
     if not plan.lines:
         return None
-    run = _Roughing(plan, stock, keep_ring, curve, tool, job, frame)
-    run.cut_the_lines()
-    run.cut_the_dips()
-    run.cut_the_left_out_again()
-    run.snapshot_the_dips()
+
+    def planned(lines: WantedPlan) -> _Roughing:
+        run = _Roughing(lines, stock, keep_ring, curve, tool, job, frame)
+        run.cut_the_lines()
+        run.cut_the_dips()
+        run.cut_the_left_out_again()
+        run.snapshot_the_dips()
+        return run
+
+    run = planned(plan)
+    needless, reason = run.needless_layers(job.depth_of_cut)
+    if needless:  # a pass came over a bump into a pocket whose upper layers it could take as well: planned again without them
+        again = planned(WantedPlan(plan.removal, tuple(line for line in plan.lines if line not in needless)))
+        if reason <= {joined for joined, _crest in again.joins}:  # the same passes come over the bump: nothing of those layers stays
+            run = again
     return run.result(begin, finish)
 
 
@@ -158,6 +169,7 @@ class _Roughing:
         self.shadows: list[tuple[float, float, float]] = []  # (level, low, high) of the stretches left in the material: nothing under them is cut
         # the order of the roughing style
         self.order, self.later = (list(range(len(self.ordered))), set()) if job.sequence is None else job.sequence(self.ordered)
+        self.joins: list[tuple[WantedLine, float]] = []  # the lines a pass reached over a bump, and the Z of the top of the bump
         self.skipped: list[tuple[int, int]] = []  # the stretches not cut: tried once more when the passes are made (the material in front of them may be gone)
 
     def _leave_out(self, number: int, k: int, level: float, low: float, high: float, retry: bool) -> None:
@@ -212,6 +224,7 @@ class _Roughing:
         if behind is not None:  # a bump lower than the line above: over it and on along the same level
             over, other, arrival, low2, ride2 = behind
             self.done.add(other)
+            self.joins.append((self.ordered[other], ride[-1].end.z))
             cut_keys.append((other, 0))
             entries[0] = Cut(start, end, (*ride, *over), line, entry=tuple(way_in), plunged=plunged)
             entries.append(Cut(arrival, Point(arrival.x, low2), tuple(ride2), self.ordered[other], joined=True))
@@ -280,6 +293,30 @@ class _Roughing:
                     self.snapshots[id(listed)] = cut(before, self.real, list(listed.ride), self.tolerance)[0]
                 except ChainError:
                     self.snapshots[id(listed)] = before
+
+    def needless_layers(self, depth_of_cut: float) -> tuple[set[WantedLine], set[WantedLine]]:
+        """The pocket lines a pass over a bump made needless, and the lines that pass reached. A pocket is cut in layers of the plunge depth
+        of cut, as it is plunged into; when a pass comes over the bump into it instead (no plunge), the layers above the line it reached are not
+        needed if the material above that line is no deeper than the depth of cut and they lie between the top of the bump and the end of that
+        line (the user's crowned roller, 2026-11-25: a plunged pass of 0.275 over the far half before the pass over the crown took it all)."""
+        tolerance = GEOMETRY_TOLERANCE_MM
+        needless: set[WantedLine] = set()
+        reason: set[WantedLine] = set()
+        for joined, crest_z in self.joins:
+            if joined.kind is not LineKind.POCKET or depth_of_cut <= 0:
+                continue
+            pocket = [line for line in self.ordered if line.kind is LineKind.POCKET and line.pocket == joined.pocket]
+            above = [line for line in pocket if line.high.x > joined.high.x + tolerance]
+            levels = sorted({round(line.high.x / tolerance) * tolerance for line in pocket}, reverse=True)
+            if not above or len(levels) < 2:
+                continue
+            contact = levels[0] + max(a - b for a, b in zip(levels, levels[1:]))  # where the material begins: one layer above the first
+            if contact - joined.high.x > depth_of_cut + tolerance:
+                continue
+            if all(line.high.z <= crest_z + tolerance and line.low.z >= joined.low.z - tolerance for line in above):
+                needless.update(above)
+                reason.add(joined)
+        return needless, reason
 
     def result(self, begin: Point | None, finish: Point | None) -> RoughingCuts:
         """The cuts joined by rapids, the tool at the first and the last place, and the counts."""

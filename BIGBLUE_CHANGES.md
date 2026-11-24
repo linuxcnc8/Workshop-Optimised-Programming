@@ -24,7 +24,7 @@ commit (or two), so commits can be picked one by one. `git log 82a637d..bigblue-
 | `76e1fc4` | Fix: File > New / Open / Undo crashed with "tool T1 is not defined" when the Tools view had a tool chosen | — |
 | `3f7e0d9`, `57b6522`, `ef01747` | Requirement status only ("tried by the user") | — |
 | branch `step-import` | STEP part import for a turning contour (turned outline, no CAD library) | C17 |
-| branch `toolpath-limits` (backward cuts) | Fix: roughing fed back up a slope towards the front (the user's crowned roller on the big blue lathe, the pawn, the custom bolt): the pass over a bump takes the level of its line, not where its ride begins (`_behind_a_bump`); a dip pass never climbs back towards the front, it rises straight up instead (`dips._forward`, `dips._straight_up`) | — |
+| branch `toolpath-limits` (backward cuts) | Fix: roughing fed back up a slope towards the front (the user's crowned roller on the big blue lathe, the pawn, the custom bolt): the pass over a bump takes the level of its line, not where its ride begins (`_behind_a_bump`); a dip pass never climbs back towards the front, it rises straight up instead (`dips._forward`, `dips._straight_up`); no plunged pocket layer a pass over the bump takes anyway (`needless_layers`) | — |
 | branch `toolpath-limits` (check speed) | Fix: the check follows an arc of 2 mm radius or more as straight chords within 0.001 mm (the user's choice; all checks about 3x faster) (`verify._with_flat_arcs_as_chords`): a long arc in 0.5 mm steps left teeth in the material that every step looked at again (the user's crowned roller: minutes per change, now under a second; same findings on all test projects) | — |
 | branch `toolpath-limits` (STEP relations) | STEP and DXF import add horizontal / vertical / tangent / on-axis relations (new `wop/core/sketch/auto_relations.py`, called in `load_profile` and `load_drawing`) | C18 |
 | branch `toolpath-limits` (finish only) | Contour block: Roughing tick (default on); off = only the finishing pass, a note when too much stands | B35 |
@@ -279,6 +279,13 @@ The user ran the crowned roller (one arc of 15 m radius, Ø34 at the ends, Ø36 
 On all test projects and examples only three plans change: the roller (no backward cut, 10 moves fewer), the pawn example (one 3 mm
 back-climb becomes a straight rise) and the user's bolt (a dip that took 0.045 mm² by climbing back is dropped; the finishing pass takes it).
 Collision findings are the same everywhere. Test: `tests/test_no_backward_roughing.py`.
+
+Then the user: "that extra harmless pass seems a bit silly". The far half of the roller is a pocket (the crown on one side, the bar beyond
+the end on the other), and a pocket is cut in layers of the plunge depth of cut (0.5): a plunged pass of 0.275 at Ø36.45 came first, before
+the pass over the crown took the rest. Now, when a pass over a bump reaches a pocket line, the layers above it are left out if the material
+above that line is no deeper than the depth of cut and they lie between the top of the bump and the end of the line
+(`_Roughing.needless_layers`; the block hands its depth of cut to `RoughingJob.depth_of_cut`): the roughing is planned once more without them,
+and that plan is kept only when the same passes come over the bump again. Only the roller changes among the test projects (56 -> 38 operations).
 
 ## New generic form hooks
 

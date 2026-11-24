@@ -384,7 +384,7 @@ class ContourTurningBlock(Block):
             inner=min(bounds.min_x, path[0].start.x) - clearance if outside else max(bounds.max_x, max(box_of(s)[2] for s in path)) + clearance,
             far_z=context.raw_part.clamp_z_mm - clearance, clearance=clearance, begin=begin, finish=finish,
             across=inputs.direction is LineDirection.ALONG_X, run_on=run_on, sequence=self._roughing_sequence(),
-            stays=tuple(self._in_front_of_z_plus(inputs)),
+            stays=tuple(self._in_front_of_z_plus(inputs)), depth_of_cut=self.depth_of_cut_mm,
         )
         try:
             return roughing_cuts(plan, inputs.stock, job)
