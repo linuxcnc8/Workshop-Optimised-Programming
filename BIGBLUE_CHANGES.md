@@ -24,6 +24,7 @@ commit (or two), so commits can be picked one by one. `git log 82a637d..bigblue-
 | `76e1fc4` | Fix: File > New / Open / Undo crashed with "tool T1 is not defined" when the Tools view had a tool chosen | — |
 | `3f7e0d9`, `57b6522`, `ef01747` | Requirement status only ("tried by the user") | — |
 | branch `step-import` | STEP part import for a turning contour (turned outline, no CAD library) | C17 |
+| branch `toolpath-limits` (backward cuts) | Fix: roughing fed back up a slope towards the front (the user's crowned roller on the big blue lathe, the pawn, the custom bolt): the pass over a bump takes the level of its line, not where its ride begins (`_behind_a_bump`); a dip pass never climbs back towards the front, it rises straight up instead (`dips._forward`, `dips._straight_up`) | — |
 | branch `toolpath-limits` (check speed) | Fix: the check follows an arc of 2 mm radius or more as straight chords within 0.001 mm (the user's choice; all checks about 3x faster) (`verify._with_flat_arcs_as_chords`): a long arc in 0.5 mm steps left teeth in the material that every step looked at again (the user's crowned roller: minutes per change, now under a second; same findings on all test projects) | — |
 | branch `toolpath-limits` (STEP relations) | STEP and DXF import add horizontal / vertical / tangent / on-axis relations (new `wop/core/sketch/auto_relations.py`, called in `load_profile` and `load_drawing`) | C18 |
 | branch `toolpath-limits` (finish only) | Contour block: Roughing tick (default on); off = only the finishing pass, a note when too much stands | B35 |
@@ -260,6 +261,24 @@ From ECAM ("Finishing Allowance X" and "Z"). Contour block only (the user: "just
   back up it are left unpushed (they would cross).
 - Tests: `tests/test_allowance_xz.py`. Not tried by the user yet.
 - Tests: `tests/test_plunge_mode.py` (the user's bolt). Not tried by the user yet.
+
+### 13. Fix: no backward cuts in the roughing (branch `toolpath-limits`)
+
+The user ran the crowned roller (one arc of 15 m radius, Ø34 at the ends, Ø36 in the middle, from Ø37) on the big blue lathe:
+"the tool paths are a mess. i even found some backwards cutting". Two causes, both in the analytic roughing:
+
+- **The pass over a bump** (`roughing_cuts._behind_a_bump`) took its level from where the ride up the contour begins. On a nearly level
+  contour the end of the line is moved to the start of the arc, a few thousandths lower (0.004 mm here), so the line behind the crown at the
+  same radius counted as higher and was not joined. The pass stopped on the crown and the far side was left to the dip passes. Now the
+  caller passes the line's radius.
+- **A dip pass** (`dips.follow_dip`) goes down the contour and up again. Where no wall stands behind the hollow (the contour falls to its
+  end, or to a spot lower than the floor) the only way up was back up the slope it came down: a feed in +Z with the back of the tool, up
+  to 245 mm long on the roller. The way up now ends where it would turn back towards the front (`_forward`); the tool rises straight up
+  instead (`_straight_up`, only where the tool may stand), as a line rides up the wall at its end.
+
+On all test projects and examples only three plans change: the roller (no backward cut, 10 moves fewer), the pawn example (one 3 mm
+back-climb becomes a straight rise) and the user's bolt (a dip that took 0.045 mm² by climbing back is dropped; the finishing pass takes it).
+Collision findings are the same everywhere. Test: `tests/test_no_backward_roughing.py`.
 
 ## New generic form hooks
 

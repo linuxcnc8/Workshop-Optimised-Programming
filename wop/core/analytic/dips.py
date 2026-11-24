@@ -5,15 +5,17 @@ them is taken by the ride-up. Where no line lies under a stretch, the contour is
 them is still there and reachable: the bottom of a pocket, a dip in the contour. So a stretch of a line with no other line of a smaller radius under it
 (`uncovered`, found by one sweep from the deepest level up, with the ranges already seen merged) gets a pass: the tool starts at the shortened
 start of the stretch, where it has stood already, follows the contour down as far as the tool may stand and up again to the height of the line above
-(`follow_dip`: the walks of `tip_walk.py`, down and up in turn). A pass that cuts nothing is dropped by the caller.
+(`follow_dip`: the walks of `tip_walk.py`, down and up in turn). The way up never turns back towards the front (`_forward`): where no wall
+stands behind the hollow (a crowned roller, 2026-11-25: the contour falls to its end) it would climb back up the slope it came down, cutting
+with the back of the tool; the tool rises straight up from the bottom instead (`_straight_up`), as a line rides up the wall at its end. A pass that cuts nothing is dropped by the caller.
 """
 
 from __future__ import annotations
 
 from ..constants import GEOMETRY_TOLERANCE_MM, TIP_WALK_MAX_PIECES, WANTED_SPAN_MIN_MM
-from ..geometry import Point, Segment
+from ..geometry import LineSegment, Point, Segment
 from ..geometry.penetration import RegionIndex
-from .tip_walk import TipCurves, tip_walk
+from .tip_walk import TipCurves, free_along, tip_walk
 from ..geometry.tool_edges import ToolLoop
 
 Range = tuple[float, float]
@@ -78,9 +80,27 @@ def follow_dip(
         down = tip_walk(curves, here, floor, -1, tool, keep, tolerance, (-1.0, 0.0) if not moves else None, True, moves)
         moves += down
         here = down[-1].end if down else here
-        up = tip_walk(curves, here, top, 1, tool, keep, tolerance, None, False, moves)
+        walked_up = tip_walk(curves, here, top, 1, tool, keep, tolerance, None, False, moves)
+        up = _forward(walked_up)
+        if walked_up and not up:  # it would only have climbed back: straight up instead
+            up = _straight_up(curves, here, top, tool, keep, tolerance)
         moves += up
         here = up[-1].end if up else here
         if not (down or up) or here.x >= level - tolerance:
             break
     return moves
+
+
+def _forward(way: list[Segment]) -> list[Segment]:
+    """The beginning of a way up that keeps going away from the front (towards the chuck, or level): it ends where a piece turns back."""
+    for index, piece in enumerate(way):
+        if piece.end.z > piece.start.z + GEOMETRY_TOLERANCE_MM:
+            return way[:index]
+    return way
+
+
+def _straight_up(curves: TipCurves, here: Point, top: float, tool: list[ToolLoop], keep: RegionIndex, tolerance: float) -> list[Segment]:
+    """A straight rise from `here` to the radius `top`, as far as the tool may stand; empty when it cannot rise at all."""
+    if top - here.x <= GEOMETRY_TOLERANCE_MM:
+        return []
+    return free_along([LineSegment(here, Point(top, here.z))], tool, keep, tolerance, curves)

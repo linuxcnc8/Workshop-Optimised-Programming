@@ -157,6 +157,11 @@ def _free(
     return kept
 
 
+def free_along(parts: list[Segment], tool: list[ToolLoop], keep: RegionIndex, tolerance: float, curves: TipCurves) -> list[Segment]:
+    """The beginning of the parts where the tool may stand (`_free`, for the other steps of the planner)."""
+    return _free(parts, tool, keep, tolerance, curves)
+
+
 def _walked(way: Segment, avoid: list[Segment]) -> bool:
     """True when the way runs along a piece of the path already walked (the way back)."""
     middle = point_of(way, MIDPOINT_FRACTION)

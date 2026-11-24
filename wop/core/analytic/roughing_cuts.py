@@ -208,7 +208,7 @@ class _Roughing:
         way_in, plunged = entry
         moves, entries, cut_keys = [LineSegment(start, end), *ride], [Cut(start, end, tuple(ride), line, entry=tuple(way_in), plunged=plunged)], [(number, k)]
         joinable = self.done if number in self.later else self.done | self.later  # a line kept for later is not pulled into a cut made now
-        behind = _behind_a_bump(self.ordered, self.planned, joinable, ride, top, self.material, self.planner)
+        behind = _behind_a_bump(self.ordered, self.planned, joinable, ride, top, self.material, self.planner, level)
         if behind is not None:  # a bump lower than the line above: over it and on along the same level
             over, other, arrival, low2, ride2 = behind
             self.done.add(other)
@@ -340,16 +340,18 @@ def _placed_passes(passes: list[tuple[int, Cut]], cuts: list[Cut], real: list) -
 
 def _behind_a_bump(
     ordered: list[WantedLine], planned: list, done: set[int], ride: list[Segment], goal: float, material: list[Loop], planner: _Planner,
+    level: float,
 ):
     """When the ride up of a line stops on the top of a bump that is lower than `goal` (the line above), the tool goes over it and down. Some
     other line lies behind the bump at the radius of this line at most, so the next lines of the list are tried in order: the first one the way
     down reaches (at its radius, within its stretch) is pulled out of the list and cut with this one, from where the tool arrives: one cut, one
     line used up, at most one depth of cut deeper. Returns the way over, the number of that line, where the tool arrives, the end of its cut and
-    its ride up; None when there is no such line."""
+    its ride up; None when there is no such line. `level` is the radius of the line, not where its ride begins: on a nearly level contour the
+    ride may begin a few thousandths lower (the end of the line moved to the start of an arc), and a line behind the bump at the same radius
+    would then count as higher (a crowned roller, 2026-11-25)."""
     curves, planning, keep, tolerance, frame = planner.curves, planner.planning, planner.keep, planner.tolerance, planner.frame
     if not ride:
         return None
-    level = ride[0].start.x
     for number, other in enumerate(ordered):
         if number in done or other.high.x > level + GEOMETRY_TOLERANCE_MM:
             continue
